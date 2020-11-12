@@ -1,7 +1,7 @@
 #ifndef PANGOLIN_CRT_STD_H
 #define PANGOLIN_CRT_STD_H
 
-inline int strlen(char * str){
+static inline int strlen(char * str){
     int n = 0;
 
     while (*str++)
@@ -10,7 +10,7 @@ inline int strlen(char * str){
     return n;
 }
 
-inline void memcpy(void *dst, void *src, unsigned int len) {
+static inline void memcpy(void *dst, void *src, unsigned int len) {
     unsigned char * d = (unsigned char *) dst;
     unsigned char * s = (unsigned char *) src;
 

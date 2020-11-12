@@ -105,11 +105,15 @@ bool CPTInject::runCode(void *buffer, unsigned long length, unsigned long offset
             break;
         }
 
-        if (currentRegs.orig_rax == -1)
+        if (currentRegs.orig_rax == -1) {
+            LOG_INFO("break exit syscall");
             break;
+        }
 
-        if (currentRegs.orig_rax == SYS_exit || currentRegs.orig_rax == SYS_exit_group)
+        if (currentRegs.orig_rax == SYS_exit || currentRegs.orig_rax == SYS_exit_group) {
+            LOG_INFO("cancel exit syscall");
             cancelSyscall();
+        }
     }
 
     LOG_INFO("restore memory");
@@ -238,7 +242,7 @@ bool CPTInject::writeMemory(void *address, void *buffer, unsigned long length) c
 }
 
 bool CPTInject::cancelSyscall() const {
-    if (ptrace(PTRACE_POKEUSER, mPid, (sizeof(unsigned long) * ORIG_RAX), -1) < 0) {
+    if (ptrace(PTRACE_POKEUSER, mPid, (sizeof(unsigned long) * ORIG_RAX), (void *)-1) < 0) {
         LOG_ERROR("cancel syscall failed");
         return false;
     }
