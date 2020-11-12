@@ -49,6 +49,8 @@ int main(int argc, char ** argv) {
     if (!shareArgs.getLoaderArgs(loaderArgs))
         return -1;
 
+    LOG_INFO("inject %s to %d at 0x%lx", file.c_str(), pid, loaderArgs.base_address);
+
     CPTInject ptInject(pid);
 
     if (!ptInject.attach())
