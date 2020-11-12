@@ -189,11 +189,9 @@ void elf_loader(struct CLoaderArgs* loader_args) {
     unsigned char *fake_stack_ptr = make_fake_stack(fake_stack_top, loader_args->arg_count,
                                                     av, env, (unsigned long *)loader_args->auxv);
 
-    unsigned long align = (unsigned long)fake_stack_ptr % 16;
-
-    if (align) {
+    if ((unsigned long)fake_stack_ptr % (2 * sizeof(long))) {
         memset(fake_stack, 0, sizeof(fake_stack));
-        fake_stack_ptr = make_fake_stack(fake_stack_top - align, loader_args->arg_count,
+        fake_stack_ptr = make_fake_stack(fake_stack_top - sizeof(long), loader_args->arg_count,
                                          av, env, (unsigned long *)loader_args->auxv);
     }
 
