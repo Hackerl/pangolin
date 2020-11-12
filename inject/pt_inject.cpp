@@ -69,7 +69,7 @@ bool CPTInject::runCode(void *buffer, unsigned long length, unsigned long offset
     if (!readMemory(memoryBase, memoryBackup.get(), length))
         return false;
 
-    LOG_INFO("inject code at: 0x%lx size: 0x%lx", (unsigned long)memoryBase, length);
+    LOG_INFO("inject code at: 0x%lx entry: 0x%lx size: 0x%lx", (unsigned long)memoryBase, offset, length);
 
     if (!writeMemory(memoryBase, buffer, length))
         return false;
@@ -139,7 +139,7 @@ bool CPTInject::callCode(void *buffer, unsigned long length, unsigned long offse
     if (!readMemory(memoryBase, memoryBackup.get(), length))
         return false;
 
-    LOG_INFO("inject code at: 0x%lx size: 0x%lx", (unsigned long)memoryBase, length);
+    LOG_INFO("inject code at: 0x%lx entry: 0x%lx size: 0x%lx", (unsigned long)memoryBase, offset, length);
 
     if (!writeMemory(memoryBase, buffer, length))
         return false;

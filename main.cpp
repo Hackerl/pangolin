@@ -64,7 +64,7 @@ int main(int argc, char ** argv) {
         return -1;
     }
 
-    LOG_INFO("malloc memory: %lx", (unsigned long)result);
+    LOG_INFO("malloc memory: 0x%lx", (unsigned long)result);
 
     ptInject.writeMemory(result, &loaderArgs, sizeof(loaderArgs));
 
@@ -79,7 +79,7 @@ int main(int argc, char ** argv) {
         return -1;
     }
 
-    LOG_INFO("free memory: %lx", (unsigned long)result);
+    LOG_INFO("free memory: 0x%lx", (unsigned long)result);
 
     if (!ptInject.callCode((void*)shrink_begin, (unsigned long)shrink_end - (unsigned long)shrink_begin,
                            (unsigned long)shrink_start - (unsigned long)shrink_begin,
