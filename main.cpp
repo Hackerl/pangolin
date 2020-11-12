@@ -3,34 +3,51 @@
 #include <spread/spread.h>
 #include <shrink/shrink.h>
 #include <loader/loader.h>
-#include <loader/args.h>
 #include <common/cmdline.h>
 #include <common/log.h>
+#include <unistd.h>
 
 int main(int argc, char ** argv) {
     cmdline::parser parse;
 
     parse.add<int>("pid", 'p', "pid", false, 0);
-    parse.add<std::string>("file", 'f', "inject file", true, "");
+
+    parse.add<std::string>("file", 'f', "file", true, "");
+    parse.add<std::string>("arg", 'a', "arg", false, "");
+    parse.add<std::string>("env", 'e', "env", false, "");
+    parse.add<std::string>("base", 'b', "base address", false, "");
 
     parse.parse_check(argc, argv);
 
     int pid = parse.get<int>("pid");
-    std::string file = parse.get<std::string>("file");
 
-    LOG_INFO("inject %s to %d", file.c_str(), pid);
+    std::string file = parse.get<std::string>("file");
+    std::string arg = parse.get<std::string>("arg");
+    std::string env = parse.get<std::string>("env");
+    std::string base = parse.get<std::string>("base");
 
     CLoaderArgs loaderArgs = {};
-    CShareArgs shareArgs(pid, file, "");
 
-    if (!shareArgs.getLoaderArgs(loaderArgs))
-        return -1;
+    if (!base.empty())
+        CStringHelper::toNumber(base, loaderArgs.base_address, 16);
 
     if (pid == 0) {
         LOG_INFO("self inject");
-        loader_self(&loaderArgs);
+
+        CShareArgs shareArgs(getpid(), file, arg, env);
+
+        if (!shareArgs.getLoaderArgs(loaderArgs))
+            return -1;
+
+        loader_start(&loaderArgs);
+
         return 0;
     }
+
+    CShareArgs shareArgs(pid, file, arg, env);
+
+    if (!shareArgs.getLoaderArgs(loaderArgs))
+        return -1;
 
     CPTInject ptInject(pid);
 
@@ -49,11 +66,14 @@ int main(int argc, char ** argv) {
 
     ptInject.writeMemory(result, &loaderArgs, sizeof(loaderArgs));
 
-    auto base = (unsigned long)result + PAGE_SIZE - (unsigned long)result % PAGE_SIZE;
+    auto injectBase = (unsigned long)result + PAGE_SIZE - (unsigned long)result % PAGE_SIZE;
+    auto injectBegin = (unsigned long)loader_begin;
 
-    if (!ptInject.runCode((void*)loader_begin(), (unsigned long)loader_end() - (unsigned long)loader_begin(),
-                           (unsigned long)loader_start - (unsigned long)loader_begin(),
-                           (void *)base, result)) {
+    injectBegin -= injectBegin % PAGE_SIZE;
+
+    if (!ptInject.runCode((void*)injectBegin, (unsigned long)loader_end() - injectBegin,
+                          (unsigned long)loader_start - injectBegin,
+                          (void *)injectBase, result)) {
         return -1;
     }
 

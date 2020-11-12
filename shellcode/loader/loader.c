@@ -1,17 +1,12 @@
 #include <sys/user.h>
 
-void __attribute__ ((visibility ("default"))) *loader_begin() {
-    unsigned long beginAddress = (unsigned long)loader_begin;
-
-    beginAddress -= beginAddress % PAGE_SIZE;
-    return (void *)beginAddress;
-}
+void __attribute__ ((visibility ("default"))) *loader_begin() {}
 
 #include "log.h"
 #include "elf_loader.h"
 
 void loader_main(void *ptr) {
-    LOG("> loader shellcode");
+    LOG("loader shellcode");
 
     struct CLoaderArgs *loader_args = ptr;
     elf_loader(loader_args);
@@ -19,11 +14,7 @@ void loader_main(void *ptr) {
     __exit(0);
 }
 
-void __attribute__ ((visibility ("default"))) loader_self(void *ptr) {
-    loader_main(ptr);
-}
-
-void __attribute__ ((visibility ("default"))) loader_start() {
+void __attribute__ ((visibility ("default"))) loader_start(void *ptr) {
     asm volatile("nop; nop; call %P0; int3;" :: "i" (loader_main));
 }
 

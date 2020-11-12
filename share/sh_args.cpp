@@ -3,12 +3,14 @@
 #include <cstring>
 #include <common/utils/process.h>
 #include <common/log.h>
-#include <unistd.h>
 
-CShareArgs::CShareArgs(int pid, const std::string& arg, const std::string& env) {
-    mPid = pid ? pid : getpid();
+CShareArgs::CShareArgs(int pid, const std::string &file, const std::string &arg, const std::string &env) {
+    mPid = pid;
+
     mArgument = CStringHelper::split(arg, ' ');
     mEnvironment = CStringHelper::split(env, ' ');
+
+    mArgument.insert(mArgument.begin(), file);
 }
 
 bool CShareArgs::getLoaderArgs(CLoaderArgs &loaderArgs) {
@@ -28,13 +30,18 @@ bool CShareArgs::getLoaderArgs(CLoaderArgs &loaderArgs) {
         env += e.length() + 1;
     }
 
-    loaderArgs.base_address = getBaseAddress();
-
     if (!loaderArgs.base_address)
-        return false;
+        loaderArgs.base_address = getBaseAddress();
 
-    if (!setAux(loaderArgs.aux, sizeof(loaderArgs.aux)))
+    if (!loaderArgs.base_address) {
+        LOG_ERROR("find base address failed");
         return false;
+    }
+
+    if (!setAux(loaderArgs.auxv, sizeof(loaderArgs.auxv))) {
+        LOG_ERROR("read auxv failed");
+        return false;
+    }
 
     return true;
 }
@@ -53,7 +60,7 @@ unsigned long CShareArgs::getBaseAddress() const {
         if (m.start > 0x7f0000000000)
             break;
 
-        baseAddress = m.end + 0x01000000 - (m.end % 0x01000000);
+        baseAddress = m.end + 0x1000000 - (m.end % 0x1000000);
     }
 
     return baseAddress;

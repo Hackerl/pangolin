@@ -7,7 +7,7 @@
 
 class CShareArgs {
 public:
-    CShareArgs(int pid, const std::string& arg, const std::string& env);
+    CShareArgs(int pid, const std::string &file, const std::string &arg, const std::string &env);
 
 public:
     bool getLoaderArgs(CLoaderArgs& loaderArgs);

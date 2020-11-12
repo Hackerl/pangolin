@@ -1,5 +1,6 @@
 #include "log.h"
 #include "elf_loader.h"
+#include "fake_stack.h"
 #include <crt_syscall.h>
 #include <fcntl.h>
 #include <sys/mman.h>
@@ -10,7 +11,23 @@
 #define ALIGN_PAGE_UP(x)    do { if((x) % PAGE_SIZE) (x) += (PAGE_SIZE - ((x) % PAGE_SIZE)); } while(0)
 #define ALIGN_PAGE_DOWN(x)  do { if((x) % PAGE_SIZE) (x) -= ((x) % PAGE_SIZE); } while(0)
 
-int elf_map(char *path, unsigned long base_address, unsigned long *auxiliary, unsigned long *out_eop) {
+int set_auxv(unsigned long * auxv, unsigned long at_type, unsigned long at_val) {
+    int i = 0;
+
+    while (auxv[i] && auxv[i] != at_type)
+        i += 2;
+
+    if (!auxv[i]) {
+        LOG("set auxv failed");
+        return -1;
+    }
+
+    auxv[i+1] = at_val;
+
+    return 0;
+}
+
+int elf_map(char *path, unsigned long base_address, unsigned long *auxv, unsigned long *out_eop) {
     LOG("map elf");
 
     int fd = _open(path, O_RDONLY, 0);
@@ -59,7 +76,7 @@ int elf_map(char *path, unsigned long base_address, unsigned long *auxiliary, un
             return -1;
         }
 
-        if(!base_segment)
+        if (!base_segment)
             base_segment = p_hdr->p_vaddr;
 
         base_next = p_hdr->p_vaddr + p_hdr->p_memsz > base_next ? p_hdr->p_vaddr + p_hdr->p_memsz : base_next;
@@ -91,7 +108,12 @@ int elf_map(char *path, unsigned long base_address, unsigned long *auxiliary, un
         }
     }
 
-    // TODO auxiliary
+    if (auxv) {
+        set_auxv(auxv, AT_PHDR, base_segment + elf_hdr->e_phoff);
+        set_auxv(auxv, AT_PHNUM, elf_hdr->e_phnum);
+        set_auxv(auxv, AT_ENTRY, eop_elf);
+        set_auxv(auxv, AT_BASE, base_segment);
+    }
 
     LOG("map elf success");
 
@@ -102,8 +124,6 @@ int elf_map(char *path, unsigned long base_address, unsigned long *auxiliary, un
 }
 
 int load_segment(unsigned char *elf, Elf64_Ehdr *elf_hdr, Elf64_Phdr *p_hdr, unsigned long base_offset) {
-    LOG("load segment");
-
     unsigned long seg_address = p_hdr->p_vaddr + base_offset;
     unsigned long seg_length  = p_hdr->p_memsz;
     unsigned long seg_offset  = seg_address & (PAGE_SIZE - 1);
@@ -128,10 +148,8 @@ int load_segment(unsigned char *elf, Elf64_Ehdr *elf_hdr, Elf64_Phdr *p_hdr, uns
     if (p_hdr->p_flags & PF_X)
         flags |= PROT_EXEC;
 
-    if(_mprotect((void*)(seg_address - seg_offset), (long)(seg_length + seg_offset), flags) < 0)
+    if (_mprotect((void*)(seg_address - seg_offset), (long)(seg_length + seg_offset), flags) < 0)
         return -1;
-
-    LOG("load segment success");
 
     return 0;
 }
@@ -139,15 +157,45 @@ int load_segment(unsigned char *elf, Elf64_Ehdr *elf_hdr, Elf64_Phdr *p_hdr, uns
 void elf_loader(struct CLoaderArgs* loader_args) {
     unsigned long eop = 0;
 
-    if (elf_map(loader_args->arg, loader_args->base_address, NULL, &eop) < 0) {
+    if (elf_map(loader_args->arg, loader_args->base_address, (unsigned long *)loader_args->auxv, &eop) < 0) {
         LOG("map elf failed");
         return;
     }
 
-    unsigned char fake_stack[4096 * 16];
-    unsigned char *fake_stack_ptr = fake_stack + sizeof(fake_stack);
+    char *av[256] = {};
+    char *env[256] = {};
 
-    fake_stack_ptr -= (unsigned long)fake_stack_ptr % 16;
+    for (int i = 0; i < loader_args->arg_count; i++) {
+        if (i == 0) {
+            av[i] = loader_args->arg;
+            continue;
+        }
+
+        av[i] = av[i-1] + strlen(av[i-1]) + 1;
+    }
+
+    for (int i = 0; i < loader_args->env_count; i++) {
+        if (i == 0) {
+            env[i] = loader_args->arg;
+            continue;
+        }
+
+        env[i] = env[i-1] + strlen(env[i-1]) + 1;
+    }
+
+    unsigned char fake_stack[4096 * 16] = {};
+    unsigned char *fake_stack_top = fake_stack + sizeof(fake_stack);
+
+    unsigned char *fake_stack_ptr = make_fake_stack(fake_stack_top, loader_args->arg_count,
+                                                    av, env, (unsigned long *)loader_args->auxv);
+
+    unsigned long align = (unsigned long)fake_stack_ptr % 16;
+
+    if (align) {
+        memset(fake_stack, 0, sizeof(fake_stack));
+        fake_stack_ptr = make_fake_stack(fake_stack_top - align, loader_args->arg_count,
+                                         av, env, (unsigned long *)loader_args->auxv);
+    }
 
     LOG("starting");
 

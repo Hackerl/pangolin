@@ -7,7 +7,7 @@ struct CLoaderArgs {
     unsigned long base_address;
     char arg[1024];
     char env[1024];
-    unsigned char aux[1024];
+    unsigned char auxv[1024];
 };
 
 #endif //PANGOLIN_ARGS_H
