@@ -139,7 +139,7 @@ int load_segment(unsigned char *elf, Elf64_Ehdr *elf_hdr, Elf64_Phdr *p_hdr, uns
 void elf_loader(struct CLoaderArgs* loader_args) {
     unsigned long eop = 0;
 
-    if (elf_map(loader_args->data, loader_args->base_address, NULL, &eop) < 0) {
+    if (elf_map(loader_args->arg, loader_args->base_address, NULL, &eop) < 0) {
         LOG("map elf failed");
         return;
     }

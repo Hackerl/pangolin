@@ -1,12 +1,11 @@
 #include "inject/pt_inject.h"
+#include "share/sh_args.h"
 #include <spread/spread.h>
 #include <shrink/shrink.h>
 #include <loader/loader.h>
 #include <loader/args.h>
 #include <common/cmdline.h>
 #include <common/log.h>
-#include <memory>
-#include <unistd.h>
 
 int main(int argc, char ** argv) {
     cmdline::parser parse;
@@ -17,38 +16,19 @@ int main(int argc, char ** argv) {
     parse.parse_check(argc, argv);
 
     int pid = parse.get<int>("pid");
-    std::string injectFile = parse.get<std::string>("file");
+    std::string file = parse.get<std::string>("file");
 
-    LOG_INFO("inject %s to %d", injectFile.c_str(), pid);
+    LOG_INFO("inject %s to %d", file.c_str(), pid);
 
-    std::list<CProcessMap> processMaps;
+    CLoaderArgs loaderArgs = {};
+    CShareArgs shareArgs(pid, file, "");
 
-    if (!CProcess::getProcessMaps(pid ? pid : getpid(), processMaps)) {
-        LOG_ERROR("get process maps failed");
+    if (!shareArgs.getLoaderArgs(loaderArgs))
         return -1;
-    }
-
-    unsigned long baseAddress = 0;
-
-    for (const auto& m: processMaps) {
-        if (m.start > 0x7f0000000000)
-            break;
-
-        baseAddress = m.end + 0x01000000 - (m.end % 0x01000000);
-    }
-
-    unsigned long argSize = sizeof(CLoaderArgs) + injectFile.size() + 1;
-    std::unique_ptr<CLoaderArgs> loaderArgs((CLoaderArgs*)new char[argSize]());
-
-    loaderArgs->size = argSize;
-    loaderArgs->arg_count = 1;
-    loaderArgs->base_address = baseAddress;
-
-    strcpy(loaderArgs->data, injectFile.data());
 
     if (pid == 0) {
         LOG_INFO("self inject");
-        loader_self((void *)loaderArgs.get());
+        loader_self(&loaderArgs);
         return 0;
     }
 
@@ -67,7 +47,7 @@ int main(int argc, char ** argv) {
 
     LOG_INFO("malloc memory: %lx", (unsigned long)result);
 
-    ptInject.writeMemory(result, loaderArgs.get(), loaderArgs->size);
+    ptInject.writeMemory(result, &loaderArgs, sizeof(loaderArgs));
 
     auto base = (unsigned long)result + PAGE_SIZE - (unsigned long)result % PAGE_SIZE;
 

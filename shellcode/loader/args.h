@@ -2,11 +2,12 @@
 #define PANGOLIN_ARGS_H
 
 struct CLoaderArgs {
-    unsigned long size;
     int arg_count;
     int env_count;
     unsigned long base_address;
-    char data[];
+    char arg[1024];
+    char env[1024];
+    unsigned char aux[1024];
 };
 
 #endif //PANGOLIN_ARGS_H
