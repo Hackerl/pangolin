@@ -1,9 +1,9 @@
 #include "inject/pt_inject.h"
 #include <spread/spread.h>
 #include <shrink/shrink.h>
+#include <loader/loader.h>
 #include <common/cmdline.h>
 #include <common/log.h>
-#include <iostream>
 
 int main(int argc, char ** argv) {
     cmdline::parser parse;
@@ -33,13 +33,21 @@ int main(int argc, char ** argv) {
 
     LOG_INFO("malloc memory: %lx", (unsigned long)result);
 
+    auto base = (unsigned long)result + PAGE_SIZE - (unsigned long)result % PAGE_SIZE;
+
+    if (!ptInject.runCode((void*)loader_begin(), (unsigned long)loader_end() - (unsigned long)loader_begin(),
+                           (unsigned long)loader_start - (unsigned long)loader_begin(),
+                           (void *)base, nullptr)) {
+        return -1;
+    }
+
+    LOG_INFO("free memory: %lx", (unsigned long)result);
+
     if (!ptInject.callCode((void*)shrink_begin, (unsigned long)shrink_end - (unsigned long)shrink_begin,
                            (unsigned long)shrink_start - (unsigned long)shrink_begin,
                            nullptr, result, nullptr)) {
         return -1;
     }
-
-    LOG_INFO("free memory: %lx", (unsigned long)result);
 
     ptInject.detach();
 

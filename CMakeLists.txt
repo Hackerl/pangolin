@@ -12,4 +12,4 @@ set(LIBRARY_OUTPUT_PATH ${CMAKE_SOURCE_DIR}/bin)
 add_subdirectory(shellcode)
 
 add_executable(pangolin main.cpp inject/pt_inject.h inject/pt_inject.cpp)
-target_link_libraries(pangolin spread shrink)
+target_link_libraries(pangolin spread shrink loader)

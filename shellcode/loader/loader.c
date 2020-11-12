@@ -1,0 +1,27 @@
+#include <sys/user.h>
+
+void __attribute__ ((visibility ("default"))) *loader_begin() {
+    unsigned long beginAddress = (unsigned long)loader_begin;
+
+    beginAddress -= beginAddress % PAGE_SIZE;
+    return (void *)beginAddress;
+}
+
+#include "log.h"
+
+void loader_main(void *ptr) {
+    LOG("hello world");
+    __exit(0);
+}
+
+void __attribute__ ((visibility ("default"))) loader_start() {
+    asm volatile("nop; nop; call %P0; int3;" :: "i" (loader_main));
+}
+
+void __attribute__ ((visibility ("default"))) *loader_end() {
+    char * endString = "end";
+    unsigned long endAddress = (unsigned long)endString;
+
+    endAddress += PAGE_SIZE - (endAddress % PAGE_SIZE);
+    return (void *)endAddress;
+}
