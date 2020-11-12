@@ -39,7 +39,7 @@ int main(int argc, char ** argv) {
         if (!shareArgs.getLoaderArgs(loaderArgs))
             return -1;
 
-        loader_start(&loaderArgs);
+        loader_self(&loaderArgs);
 
         return 0;
     }

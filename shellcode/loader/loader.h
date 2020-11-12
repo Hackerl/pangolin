@@ -3,7 +3,8 @@
 
 extern "C" {
 void *loader_begin();
-void loader_start(void *ptr);
+void loader_self(void *ptr);
+void loader_start();
 void *loader_end();
 };
 

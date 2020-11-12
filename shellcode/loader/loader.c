@@ -14,7 +14,11 @@ void loader_main(void *ptr) {
     __exit(0);
 }
 
-void __attribute__ ((visibility ("default"))) loader_start(void *ptr) {
+void __attribute__ ((visibility ("default"))) loader_self(void *ptr) {
+    loader_main(ptr);
+}
+
+void __attribute__ ((visibility ("default"))) loader_start() {
     asm volatile("nop; nop; call %P0; int3;" :: "i" (loader_main));
 }
 
