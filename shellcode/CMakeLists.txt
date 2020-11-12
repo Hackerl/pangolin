@@ -14,4 +14,4 @@ set(CMAKE_C_FLAGS "-fno-common -fno-stack-protector \
 
 add_library(spread SHARED spread/spread.h spread/spread.c)
 add_library(shrink SHARED shrink/shrink.h shrink/shrink.c)
-add_library(loader SHARED loader/loader.h loader/loader.c)
+add_library(loader SHARED loader/loader.h loader/loader.c loader/elf_loader.h loader/elf_loader.c)
