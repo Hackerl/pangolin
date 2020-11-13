@@ -214,7 +214,20 @@ bool CPTInject::setRegister(user_regs_struct regs) const {
 }
 
 bool CPTInject::readMemory(void *address, void *buffer, unsigned long length) const {
+    if (length < sizeof(long)) {
+        LOG_ERROR("read memory length need > 8");
+        return false;
+    }
+
     unsigned long n = 0;
+    unsigned long piece = length % sizeof(long);
+
+    if (piece) {
+        long r = ptrace(PTRACE_PEEKTEXT, mPid, (unsigned char *)address + length - sizeof(long), nullptr);
+        *(long *)((unsigned char *)buffer + length - sizeof(long)) = r;
+
+        length -= piece;
+    }
 
     while (n < length) {
         long r = ptrace(PTRACE_PEEKTEXT, mPid, (unsigned char *)address + n, nullptr);
@@ -227,7 +240,22 @@ bool CPTInject::readMemory(void *address, void *buffer, unsigned long length) co
 }
 
 bool CPTInject::writeMemory(void *address, void *buffer, unsigned long length) const {
+    if (length < sizeof(long)) {
+        LOG_ERROR("write memory length need > 8");
+        return false;
+    }
+
     unsigned long n = 0;
+    unsigned long piece = length % sizeof(long);
+
+    if (piece) {
+        if (ptrace(PTRACE_POKETEXT, mPid, (unsigned char*)address + length - sizeof(long), *(long *)((unsigned char *)buffer + length - sizeof(long))) < 0) {
+            LOG_ERROR("write memory failed");
+            return false;
+        }
+
+        length -= piece;
+    }
 
     while (n < length) {
         if (ptrace(PTRACE_POKETEXT, mPid, (unsigned char*)address + n, *(long *)((unsigned char *)buffer + n)) < 0) {

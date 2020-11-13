@@ -69,12 +69,9 @@ int main(int argc, char ** argv) {
     ptInject.writeMemory(result, &loaderArgs, sizeof(loaderArgs));
 
     auto injectBase = (unsigned long)result + PAGE_SIZE - (unsigned long)result % PAGE_SIZE;
-    auto injectBegin = (unsigned long)loader_begin;
 
-    injectBegin -= injectBegin % PAGE_SIZE;
-
-    if (!ptInject.runCode((void*)injectBegin, (unsigned long)loader_end() - injectBegin,
-                          (unsigned long)loader_start - injectBegin,
+    if (!ptInject.runCode((void*)loader_begin, (unsigned long)loader_end() - (unsigned long)loader_begin,
+                          (unsigned long)loader_start - (unsigned long)loader_begin,
                           (void *)injectBase, result)) {
         return -1;
     }
