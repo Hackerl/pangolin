@@ -321,8 +321,6 @@ bool CPTInject::searchExecZone(void **base) const {
 }
 
 bool CPTInject::loadShellcode(const char *name, void **begin, void **entry, void **end) {
-    LOG_INFO("load shellcode %s", name);
-
     std::string path = CPath::join(CPath::getAPPDir(), name);
 
     void* DLHandle = dlopen(path.c_str(), RTLD_LAZY);
@@ -335,7 +333,7 @@ bool CPTInject::loadShellcode(const char *name, void **begin, void **entry, void
     *end = dlsym(DLHandle, "shellcode_end");
 
     if (!*begin || !*entry || !*end) {
-        LOG_ERROR("load shellcode failed");
+        LOG_ERROR("load shellcode %s failed", name);
 
         dlclose(DLHandle);
         return false;
