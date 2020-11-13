@@ -193,12 +193,6 @@ void elf_loader(struct CLoaderArgs* loader_args) {
     unsigned char *fake_stack_ptr = make_fake_stack(fake_stack_top, loader_args->arg_count,
                                                     av, env, (unsigned long *)loader_args->auxv);
 
-    if ((unsigned long)fake_stack_ptr % (2 * sizeof(long))) {
-        memset(fake_stack, 0, sizeof(fake_stack));
-        fake_stack_ptr = make_fake_stack(fake_stack_top - sizeof(long), loader_args->arg_count,
-                                         av, env, (unsigned long *)loader_args->auxv);
-    }
-
     LOG("starting");
 
     asm volatile("xchg %%rsp, %0; jmp *%%rax;" : "=r"(fake_stack_ptr) : "0"(fake_stack_ptr), "a"(eop));

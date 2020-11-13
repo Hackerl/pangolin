@@ -60,23 +60,36 @@ static inline unsigned char *make_fake_stack(unsigned char *sp, int ac, char **a
         av_ptr[i] = sp;
     }
 
+    unsigned char *stack_argument_ptr = sp;
+
     // auxv
     FSTACK_PUSH_AUXV(sp, auxv);
 
     // envp
     FSTACK_PUSH_LONG(sp, 0);
 
-    for(int i = 0; i < env_max; i++)
+    for (int i = 0; i < env_max; i++)
         FSTACK_PUSH_LONG(sp, (unsigned long)env_ptr[i]);
 
     // argp
     FSTACK_PUSH_LONG(sp, 0);
 
-    for(int i = 0; i < ac; i++)
+    for (int i = 0; i < ac; i++)
         FSTACK_PUSH_LONG(sp, (unsigned long)av_ptr[i]);
 
     // argc
     FSTACK_PUSH_LONG(sp, ac);
+
+    if ((unsigned long)sp % (2 * sizeof(long))) {
+        LOG("adjust stack");
+
+        for (unsigned char *i = sp; i < stack_argument_ptr; i++)
+            *(i - sizeof(long)) = *i;
+
+        memset(stack_argument_ptr - sizeof(long), 0, sizeof(long));
+
+        sp -= sizeof(long);
+    }
 
     return sp;
 }
