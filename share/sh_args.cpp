@@ -7,25 +7,25 @@
 CShareArgs::CShareArgs(int pid, const std::string &file, const std::string &arg, const std::string &env) {
     mPid = pid;
 
-    mArgument = CStringHelper::split(arg, ' ');
-    mEnvironment = CStringHelper::split(env, ' ');
+    mArg = CStringHelper::split(arg, ' ');
+    mEnv = CStringHelper::split(env, ' ');
 
-    mArgument.insert(mArgument.begin(), file);
+    mArg.insert(mArg.begin(), file);
 }
 
 bool CShareArgs::getLoaderArgs(CLoaderArgs &loaderArgs) {
-    loaderArgs.arg_count = mArgument.size();
-    loaderArgs.env_count = mEnvironment.size();
+    loaderArgs.arg_count = mArg.size();
+    loaderArgs.env_count = mEnv.size();
 
     char *arg = loaderArgs.arg;
     char *env = loaderArgs.env;
 
-    for (const auto& a: mArgument) {
+    for (const auto& a: mArg) {
         strcpy(arg, a.c_str());
         arg += a.length() + 1;
     }
 
-    for (const auto& e: mEnvironment) {
+    for (const auto& e: mEnv) {
         strcpy(env, e.c_str());
         env += e.length() + 1;
     }

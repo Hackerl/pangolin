@@ -26,6 +26,7 @@ int set_auxv(unsigned long * auxv, unsigned long at_type, unsigned long at_val) 
         return -1;
     }
 
+    LOG("set auxv[%d] to 0x%lx", at_type, at_val);
     auxv[i+1] = at_val;
 
     return 0;
@@ -39,6 +40,8 @@ int load_segment(unsigned char *elf, Elf64_Phdr *p_hdr, unsigned long base_offse
     ALIGN_PAGE_UP(seg_length);
 
     unsigned long address = (unsigned long)_mmap((void*)(seg_address - seg_offset), (long)(seg_length + seg_offset), PROT_READ | PROT_WRITE, MAP_FIXED | MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+
+    LOG("load segment addr 0x%llx len 0x%lx => 0x%lx", seg_address, seg_length, address);
 
     if (address != seg_address - seg_offset)
         return -1;
@@ -63,7 +66,7 @@ int load_segment(unsigned char *elf, Elf64_Phdr *p_hdr, unsigned long base_offse
 }
 
 int elf_map(char *path, unsigned long base_address, unsigned long *auxv, unsigned long *out_eop) {
-    LOG("map elf");
+    LOG("mapping '%s' into memory at 0x%lx", path, base_address);
 
     int fd = _open(path, O_RDONLY, 0);
 
@@ -125,6 +128,8 @@ int elf_map(char *path, unsigned long base_address, unsigned long *auxv, unsigne
     base_next += MOD_OFFSET_NEXT;
     ALIGN_PAGE_UP(base_next);
 
+    LOG("max addr 0x%lx", base_address + base_next);
+
     unsigned long eop_ldr = 0;
     unsigned long base_interpreter = 0;
 
@@ -137,6 +142,8 @@ int elf_map(char *path, unsigned long base_address, unsigned long *auxv, unsigne
         base_interpreter = base_address + base_next;
         char *interpreter = (char*)(elf_hdr->e_type == ET_DYN ? base_segment : 0) + p_hdr->p_vaddr;
 
+        LOG("loading interp '%s'", interpreter);
+
         if (elf_map(interpreter, base_interpreter, NULL, &eop_ldr)) {
             _munmap(elf_buffer, (int)file_size);
             return -1;
@@ -144,21 +151,25 @@ int elf_map(char *path, unsigned long base_address, unsigned long *auxv, unsigne
     }
 
     if (auxv) {
+        LOG("setting auxv");
+
         set_auxv(auxv, AT_PHDR, base_segment + elf_hdr->e_phoff);
         set_auxv(auxv, AT_PHNUM, elf_hdr->e_phnum);
         set_auxv(auxv, AT_ENTRY, eop_elf);
         set_auxv(auxv, AT_BASE, base_segment);
     }
 
-    LOG("map elf success");
-
     _munmap(elf_buffer, (int)file_size);
     *out_eop = eop_ldr ? eop_ldr : eop_elf;
+
+    LOG("eop 0x%lx", *out_eop);
 
     return 0;
 }
 
 void elf_loader(struct CLoaderArgs* loader_args) {
+    LOG("target: %s arg: %d env: %d", loader_args->arg, loader_args->arg_count, loader_args->env_count);
+
     unsigned long eop = 0;
 
     if (elf_map(loader_args->arg, loader_args->base_address, (unsigned long *)loader_args->auxv, &eop) < 0) {
@@ -193,7 +204,8 @@ void elf_loader(struct CLoaderArgs* loader_args) {
     unsigned char *fake_stack_ptr = make_fake_stack(fake_stack_top, loader_args->arg_count,
                                                     av, env, (unsigned long *)loader_args->auxv);
 
-    LOG("starting");
+    LOG("fake stack: %x", fake_stack_ptr);
+    LOG("starting ...")
 
     asm volatile("xchg %%rsp, %0; jmp *%%rax;" : "=r"(fake_stack_ptr) : "0"(fake_stack_ptr), "a"(eop));
 }

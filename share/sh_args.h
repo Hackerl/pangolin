@@ -20,8 +20,8 @@ private:
 
 private:
     int mPid;
-    std::vector<std::string> mArgument;
-    std::vector<std::string> mEnvironment;
+    std::vector<std::string> mArg;
+    std::vector<std::string> mEnv;
 };
 
 #endif //PANGOLIN_SH_ARGS_H

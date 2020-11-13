@@ -10,7 +10,7 @@ PORTABLE = -fPIC -fno-builtin
 all:
 	$(CC) $(CFLAGS) $(PORTABLE) $(LDFLAGS) -o libspread.so spread/spread.c
 	$(CC) $(CFLAGS) $(PORTABLE) $(LDFLAGS) -o libshrink.so shrink/shrink.c
-	$(CC) $(CFLAGS) $(PORTABLE) $(LDFLAGS) -o libloader.so loader/loader.c
+	$(CC) $(CFLAGS) $(PORTABLE) $(LDFLAGS) -o libloader.so loader/loader.c loader/printf.c
 
 clean:
 	rm libspread.so libshrink.so libloader.so

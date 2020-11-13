@@ -1,12 +1,11 @@
 #include "log.h"
 #include "elf_loader.h"
 #include "loader.h"
-#include <sys/user.h>
 
 void __attribute__ ((visibility ("default"))) shellcode_begin() {}
 
 void loader_main(void *ptr) {
-    LOG("loader shellcode");
+    LOG("elf loader start");
 
     struct CLoaderArgs *loader_args = ptr;
     elf_loader(loader_args);
