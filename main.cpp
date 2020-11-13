@@ -10,7 +10,7 @@
 int main(int argc, char ** argv) {
     cmdline::parser parse;
 
-    parse.add<int>("pid", 'p', "pid", false, 0);
+    parse.add<int>("pid", 'p', "pid", true, 0);
 
     parse.add<std::string>("file", 'f', "file", true, "");
     parse.add<std::string>("arg", 'a', "arg", false, "");
@@ -31,19 +31,6 @@ int main(int argc, char ** argv) {
     if (!base.empty())
         CStringHelper::toNumber(base, loaderArgs.base_address, 16);
 
-    if (pid == 0) {
-        LOG_INFO("self inject");
-
-        CShareArgs shareArgs(getpid(), file, arg, env);
-
-        if (!shareArgs.getLoaderArgs(loaderArgs))
-            return -1;
-
-        loader_self(&loaderArgs);
-
-        return 0;
-    }
-
     CShareArgs shareArgs(pid, file, arg, env);
 
     if (!shareArgs.getLoaderArgs(loaderArgs))
@@ -58,9 +45,7 @@ int main(int argc, char ** argv) {
 
     void *result = nullptr;
 
-    if (!ptInject.callCode((void*)spread_begin, (unsigned long)spread_end - (unsigned long)spread_begin,
-                           (unsigned long)spread_start - (unsigned long)spread_begin,
-                           nullptr, (void *)0x10000, &result)) {
+    if (!ptInject.callCode("libspread.so", nullptr, (void *)0x10000, &result)) {
         return -1;
     }
 
@@ -70,17 +55,13 @@ int main(int argc, char ** argv) {
 
     auto injectBase = (unsigned long)result + PAGE_SIZE - (unsigned long)result % PAGE_SIZE;
 
-    if (!ptInject.runCode((void*)loader_begin, (unsigned long)loader_end() - (unsigned long)loader_begin,
-                          (unsigned long)loader_start - (unsigned long)loader_begin,
-                          (void *)injectBase, result)) {
+    if (!ptInject.runCode("libloader.so", (void *)injectBase, result)) {
         return -1;
     }
 
     LOG_INFO("free memory: 0x%lx", (unsigned long)result);
 
-    if (!ptInject.callCode((void*)shrink_begin, (unsigned long)shrink_end - (unsigned long)shrink_begin,
-                           (unsigned long)shrink_start - (unsigned long)shrink_begin,
-                           nullptr, result, nullptr)) {
+    if (!ptInject.callCode("libshrink.so", nullptr, result, nullptr)) {
         return -1;
     }
 

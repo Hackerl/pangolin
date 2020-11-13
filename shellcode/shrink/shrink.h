@@ -1,10 +1,8 @@
 #ifndef PANGOLIN_SHRINK_H
 #define PANGOLIN_SHRINK_H
 
-extern "C" {
-void shrink_begin();
-void shrink_start();
-void shrink_end();
-};
+void __attribute__ ((section (".begin"))) shellcode_begin();
+void shellcode_start();
+void __attribute__ ((section (".end"))) shellcode_end();
 
 #endif //PANGOLIN_SHRINK_H

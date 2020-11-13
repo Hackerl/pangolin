@@ -14,11 +14,8 @@ public:
     bool detach();
 
 public:
-    bool runCode(void *buffer, unsigned long length,
-                 unsigned long offset, void *base, void *arg) const;
-
-    bool callCode(void *buffer, unsigned long length,
-                  unsigned long offset, void *base, void *arg, void **result) const;
+    bool runCode(const char *shellcode, void *base, void *arg) const;
+    bool callCode(const char *shellcode, void *base, void *arg, void **result) const;
 
 private:
     bool searchExecZone(void **base) const;
@@ -30,6 +27,9 @@ public:
 public:
     bool readMemory(void *address, void *buffer, unsigned long length) const;
     bool writeMemory(void *address, void *buffer, unsigned long length) const;
+
+private:
+    static bool loadShellcode(const char *name, void **begin, void **entry, void **end) ;
 
 private:
     bool cancelSyscall() const;

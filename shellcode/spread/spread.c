@@ -1,4 +1,6 @@
-void __attribute__ ((visibility ("default"))) spread_begin() {}
+#include "spread.h"
+
+void __attribute__ ((visibility ("default"))) shellcode_begin() {}
 
 #include <crt_memory.h>
 
@@ -19,8 +21,8 @@ void *spread_main(unsigned long size) {
     return mem;
 }
 
-void __attribute__ ((visibility ("default"))) spread_start() {
+void __attribute__ ((visibility ("default"))) shellcode_start() {
     asm volatile("nop; nop; call %P0; int3;" :: "i" (spread_main));
 }
 
-void __attribute__ ((visibility ("default"))) spread_end() {}
+void __attribute__ ((visibility ("default"))) shellcode_end() {}

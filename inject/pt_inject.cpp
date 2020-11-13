@@ -7,6 +7,8 @@
 #include <sys/wait.h>
 #include <syscall.h>
 #include <common/log.h>
+#include <dlfcn.h>
+#include <common/utils/path.h>
 
 CPTInject::CPTInject(int pid) {
     mPid = pid;
@@ -55,7 +57,17 @@ bool CPTInject::detach() {
     return true;
 }
 
-bool CPTInject::runCode(void *buffer, unsigned long length, unsigned long offset, void *base, void *arg) const {
+bool CPTInject::runCode(const char *shellcode, void *base, void *arg) const {
+    void *begin = nullptr;
+    void *entry = nullptr;
+    void *end = nullptr;
+
+    if (!loadShellcode(shellcode, &begin, &entry, &end))
+        return false;
+
+    unsigned long offset = (unsigned long)entry - (unsigned long)begin;
+    unsigned long length = (unsigned long)end - (unsigned long)begin;
+
     void *memoryBase = base;
     std::unique_ptr<unsigned char> memoryBackup(new unsigned char[length + sizeof(long)]());
 
@@ -71,7 +83,7 @@ bool CPTInject::runCode(void *buffer, unsigned long length, unsigned long offset
 
     LOG_INFO("inject code at: 0x%lx entry: 0x%lx size: 0x%lx", (unsigned long)memoryBase, offset, length);
 
-    if (!writeMemory(memoryBase, buffer, length))
+    if (!writeMemory(memoryBase, begin, length))
         return false;
 
     user_regs_struct modifyRegs = mRegister;
@@ -124,8 +136,17 @@ bool CPTInject::runCode(void *buffer, unsigned long length, unsigned long offset
     return true;
 }
 
-bool CPTInject::callCode(void *buffer, unsigned long length, unsigned long offset, void *base, void *arg,
-                         void **result) const {
+bool CPTInject::callCode(const char *shellcode, void *base, void *arg, void **result) const {
+    void *begin = nullptr;
+    void *entry = nullptr;
+    void *end = nullptr;
+
+    if (!loadShellcode(shellcode, &begin, &entry, &end))
+        return false;
+
+    unsigned long offset = (unsigned long)entry - (unsigned long)begin;
+    unsigned long length = (unsigned long)end - (unsigned long)begin;
+
     void *memoryBase = base;
     std::unique_ptr<unsigned char> memoryBackup(new unsigned char[length + sizeof(long)]());
 
@@ -141,7 +162,7 @@ bool CPTInject::callCode(void *buffer, unsigned long length, unsigned long offse
 
     LOG_INFO("inject code at: 0x%lx entry: 0x%lx size: 0x%lx", (unsigned long)memoryBase, offset, length);
 
-    if (!writeMemory(memoryBase, buffer, length))
+    if (!writeMemory(memoryBase, begin, length))
         return false;
 
     user_regs_struct modifyRegs = mRegister;
@@ -297,4 +318,28 @@ bool CPTInject::searchExecZone(void **base) const {
     }
 
     return found;
+}
+
+bool CPTInject::loadShellcode(const char *name, void **begin, void **entry, void **end) {
+    LOG_INFO("load shellcode %s", name);
+
+    std::string path = CPath::join(CPath::getAPPDir(), name);
+
+    void* DLHandle = dlopen(path.c_str(), RTLD_LAZY);
+
+    if (!DLHandle)
+        return false;
+
+    *begin = dlsym(DLHandle, "shellcode_begin");
+    *entry = dlsym(DLHandle, "shellcode_start");
+    *end = dlsym(DLHandle, "shellcode_end");
+
+    if (!*begin || !*entry || !*end) {
+        LOG_ERROR("load shellcode failed");
+
+        dlclose(DLHandle);
+        return false;
+    }
+
+    return true;
 }
