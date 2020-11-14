@@ -1,6 +1,7 @@
 #include "log.h"
 #include "elf_loader.h"
 #include "loader.h"
+#include <crt_asm.h>
 
 void __attribute__ ((visibility ("default"))) shellcode_begin() {}
 
@@ -14,7 +15,7 @@ void loader_main(void *ptr) {
 }
 
 void __attribute__ ((visibility ("default"))) shellcode_start() {
-    asm volatile("nop; nop; call %P0; int3;" :: "i" (loader_main));
+    INJ_ENTRY(loader_main);
 }
 
 void __attribute__ ((visibility ("default"))) shellcode_end() {}

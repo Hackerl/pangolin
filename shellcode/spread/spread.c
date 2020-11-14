@@ -1,8 +1,8 @@
 #include "spread.h"
+#include <crt_asm.h>
+#include <crt_memory.h>
 
 void __attribute__ ((visibility ("default"))) shellcode_begin() {}
-
-#include <crt_memory.h>
 
 void *spread_main(unsigned long size) {
     if (!size)
@@ -22,7 +22,7 @@ void *spread_main(unsigned long size) {
 }
 
 void __attribute__ ((visibility ("default"))) shellcode_start() {
-    asm volatile("nop; nop; call %P0; int3;" :: "i" (spread_main));
+    INJ_ENTRY(spread_main);
 }
 
 void __attribute__ ((visibility ("default"))) shellcode_end() {}

@@ -5,6 +5,7 @@
 #include "fake_stack.h"
 #include "args.h"
 #include <crt_syscall.h>
+#include <crt_asm.h>
 #include <fcntl.h>
 #include <sys/mman.h>
 #include <stddef.h>
@@ -207,7 +208,7 @@ void elf_loader(struct CLoaderArgs* loader_args) {
     LOG("fake stack: %x", fake_stack_ptr);
     LOG("starting ...")
 
-    asm volatile("xchg %%rsp, %0; jmp *%%rax;" : "=r"(fake_stack_ptr) : "0"(fake_stack_ptr), "a"(eop));
+    FIX_SP_JMP(fake_stack_ptr, eop);
 }
 
 #endif //PANGOLIN_ELF_LOADER_H
