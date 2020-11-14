@@ -182,21 +182,13 @@ void elf_loader(struct CLoaderArgs* loader_args) {
     char *env[256] = {};
 
     for (int i = 0; i < loader_args->arg_count; i++) {
-        if (i == 0) {
-            av[i] = loader_args->arg;
-            continue;
-        }
-
-        av[i] = av[i-1] + strlen(av[i-1]) + 1;
+        av[i] = i == 0 ? loader_args->arg : av[i-1] + strlen(av[i-1]) + 1;
+        LOG("arg %d: %s", i, av[i]);
     }
 
     for (int i = 0; i < loader_args->env_count; i++) {
-        if (i == 0) {
-            env[i] = loader_args->arg;
-            continue;
-        }
-
-        env[i] = env[i-1] + strlen(env[i-1]) + 1;
+        env[i] = i == 0 ? loader_args->env : env[i-1] + strlen(env[i-1]) + 1;
+        LOG("env %d: %s", i, env[i]);
     }
 
     unsigned char fake_stack[4096 * 16] = {};
