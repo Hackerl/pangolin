@@ -16,12 +16,11 @@ mv shellcode/lib* bin
 ```
 ## usage
 ```shell
-usage: ./pangolin --file=string [options] ...
+usage: ./pangolin --pid=int --command=string [options] ...
 options:
-  -p, --pid     pid (int [=0])
-  -f, --file    file (string)
-  -a, --arg     arg (string [=])
-  -e, --env     env (string [=])
-  -b, --base    base address (string [=])
-  -?, --help    print this message
+  -p, --pid        pid (int)
+  -c, --command    command line (string)
+  -e, --env        env (string [=])
+  -b, --base       base address (string [=])
+  -?, --help       print this message
 ```

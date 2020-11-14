@@ -205,7 +205,7 @@ void elf_loader(struct CLoaderArgs* loader_args) {
     unsigned char *fake_stack_ptr = make_fake_stack(fake_stack_top, loader_args->arg_count,
                                                     av, env, (unsigned long *)loader_args->auxv);
 
-    LOG("fake stack: %x", fake_stack_ptr);
+    LOG("fake stack: 0x%x", fake_stack_ptr);
     LOG("starting ...")
 
     FIX_SP_JMP(fake_stack_ptr, eop);

@@ -12,8 +12,7 @@ int main(int argc, char ** argv) {
 
     parse.add<int>("pid", 'p', "pid", true, 0);
 
-    parse.add<std::string>("file", 'f', "file", true, "");
-    parse.add<std::string>("arg", 'a', "arg", false, "");
+    parse.add<std::string>("command", 'c', "command line", true, "");
     parse.add<std::string>("env", 'e', "env", false, "");
     parse.add<std::string>("base", 'b', "base address", false, "");
 
@@ -21,8 +20,7 @@ int main(int argc, char ** argv) {
 
     int pid = parse.get<int>("pid");
 
-    std::string file = parse.get<std::string>("file");
-    std::string arg = parse.get<std::string>("arg");
+    std::string command = parse.get<std::string>("command");
     std::string env = parse.get<std::string>("env");
     std::string base = parse.get<std::string>("base");
 
@@ -31,12 +29,12 @@ int main(int argc, char ** argv) {
     if (!base.empty())
         CStringHelper::toNumber(base, loaderArgs.base_address, 16);
 
-    CShareArgs shareArgs(pid, file, arg, env);
+    CShareArgs shareArgs(pid, command, env);
 
     if (!shareArgs.getLoaderArgs(loaderArgs))
         return -1;
 
-    LOG_INFO("inject %s to %d at 0x%lx", file.c_str(), pid, loaderArgs.base_address);
+    LOG_INFO("inject '%s' to process %d at 0x%lx", loaderArgs.arg, pid, loaderArgs.base_address);
 
     CPTInject ptInject(pid);
 
