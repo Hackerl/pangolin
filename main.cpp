@@ -1,11 +1,7 @@
 #include "inject/pt_inject.h"
 #include "share/sh_args.h"
-#include <spread/spread.h>
-#include <shrink/shrink.h>
-#include <loader/loader.h>
 #include <common/cmdline.h>
 #include <common/log.h>
-#include <unistd.h>
 
 int main(int argc, char ** argv) {
     cmdline::parser parse;
