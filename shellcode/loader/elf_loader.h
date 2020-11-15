@@ -1,10 +1,10 @@
 #ifndef PANGOLIN_ELF_LOADER_H
 #define PANGOLIN_ELF_LOADER_H
 
-#include "log.h"
 #include "fake_stack.h"
 #include "args.h"
 #include <crt_syscall.h>
+#include <crt_log.h>
 #include <crt_asm.h>
 #include <crt_utils.h>
 #include <fcntl.h>

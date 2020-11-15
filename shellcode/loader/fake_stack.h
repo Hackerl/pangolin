@@ -2,6 +2,7 @@
 #define PANGOLIN_FAKE_STACK_H
 
 #include <crt_std.h>
+#include <crt_log.h>
 
 #define FSTACK_PUSH_STR(sp, s)                  \
 {                                               \

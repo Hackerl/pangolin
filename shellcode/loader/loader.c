@@ -1,6 +1,6 @@
-#include "log.h"
 #include "elf_loader.h"
 #include "loader.h"
+#include <crt_log.h>
 #include <crt_asm.h>
 
 void __attribute__ ((visibility ("default"))) shellcode_begin() {}
