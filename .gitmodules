@@ -1,3 +1,6 @@
 [submodule "include/common"]
 	path = include/common
 	url = https://github.com/Hackerl/cpp-common
+[submodule "shellcode/crt"]
+	path = shellcode/crt
+	url = https://github.com/Hackerl/crt
