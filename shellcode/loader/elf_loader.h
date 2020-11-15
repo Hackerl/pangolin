@@ -6,6 +6,7 @@
 #include "args.h"
 #include <crt_syscall.h>
 #include <crt_asm.h>
+#include <crt_utils.h>
 #include <fcntl.h>
 #include <sys/mman.h>
 #include <stddef.h>
@@ -76,15 +77,13 @@ int elf_map(char *path, unsigned long base_address, unsigned long *auxv, unsigne
         return -1;
     }
 
-    long file_size = _lseek(fd, 0, SEEK_END);
+    long file_size = get_file_size(fd);
 
-    if(file_size <= 0) {
-        LOG("seek file end failed");
+    if (file_size <= 0) {
+        LOG("get file size failed");
         _close(fd);
         return -1;
     }
-
-    _lseek(fd, 0, SEEK_SET);
 
     void *elf_buffer = _mmap(NULL, (size_t)file_size, PROT_READ, MAP_PRIVATE, fd, 0);
 
@@ -198,7 +197,7 @@ void elf_loader(struct CLoaderArgs* loader_args) {
                                                     av, env, (unsigned long *)loader_args->auxv);
 
     LOG("fake stack: 0x%x", fake_stack_ptr);
-    LOG("starting ...")
+    LOG("starting ...");
 
     FIX_SP_JMP(fake_stack_ptr, eop);
 }
