@@ -7,11 +7,8 @@
 CShareArgs::CShareArgs(int pid, const std::string &command, const std::string &env) {
     mPid = pid;
 
-    if (!wordExp(command, mArg))
-        LOG_ERROR("'%s' word exp failed", command.c_str());
-
-    if (!wordExp(env, mEnv))
-        LOG_ERROR("'%s' word exp failed", env.c_str());
+    wordExp(command, mArg);
+    wordExp(env, mEnv);
 }
 
 bool CShareArgs::getLoaderArgs(CLoaderArgs &loaderArgs) {
@@ -83,12 +80,12 @@ bool CShareArgs::wordExp(const std::string &str, std::list<std::string>& words) 
     wordexp_t p = {};
 
     if (wordexp(str.c_str(), &p, 0) != 0) {
+        LOG_ERROR("'%s' word exp failed", p);
         return false;
     }
 
-    for (int i = 0; i < p.we_wordc; i++) {
+    for (int i = 0; i < p.we_wordc; i++)
         words.emplace_back(p.we_wordv[i]);
-    }
 
     wordfree(&p);
 

@@ -42,7 +42,7 @@ int load_segment(unsigned char *elf, Elf64_Phdr *p_hdr, unsigned long base_offse
 
     unsigned long address = (unsigned long)_mmap((void*)(seg_address - seg_offset), (long)(seg_length + seg_offset), PROT_READ | PROT_WRITE, MAP_FIXED | MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
 
-    LOG("load segment addr 0x%llx len 0x%lx => 0x%lx", seg_address, seg_length, address);
+    LOG("load segment addr 0x%lx len 0x%lx => 0x%lx", seg_address, seg_length, address);
 
     if (address != seg_address - seg_offset)
         return -1;
