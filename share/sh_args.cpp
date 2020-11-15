@@ -80,7 +80,7 @@ bool CShareArgs::wordExp(const std::string &str, std::list<std::string>& words) 
     wordexp_t p = {};
 
     if (wordexp(str.c_str(), &p, 0) != 0) {
-        LOG_ERROR("'%s' word exp failed", p);
+        LOG_ERROR("'%s' word exp failed", str.c_str());
         return false;
     }
 
