@@ -54,14 +54,18 @@ bool CShareArgs::getBaseAddress(unsigned long& baseAddress) const {
         return -1;
     }
 
+    baseAddress = 0;
+
     for (const auto& m: processMaps) {
         if (m.start > 0x7f0000000000)
             break;
 
-        baseAddress = m.end + 0x1000000 - (m.end % 0x1000000);
+        baseAddress = m.end;
     }
 
-    return baseAddress != 0;
+    baseAddress += 0x1000000 - (baseAddress % 0x1000000);
+
+    return true;
 }
 
 bool CShareArgs::setAux(CLoaderArgs &loaderArgs) const {
