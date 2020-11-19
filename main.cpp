@@ -2,6 +2,7 @@
 #include "share/sh_args.h"
 #include <common/cmdline.h>
 #include <common/log.h>
+#include <common/utils/string_helper.h>
 
 int main(int argc, char ** argv) {
     cmdline::parser parse;

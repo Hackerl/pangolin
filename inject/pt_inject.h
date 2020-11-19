@@ -2,7 +2,6 @@
 #define PANGOLIN_PT_INJECT_H
 
 #include <sys/user.h>
-#include <common/utils/process.h>
 
 class CPTInject {
 public:
@@ -14,8 +13,8 @@ public:
     bool detach();
 
 public:
-    bool runCode(const char *shellcode, void *base, void *arg) const;
-    bool callCode(const char *shellcode, void *base, void *arg, void **result) const;
+    bool runCode(const char *filename, void *base, void *arg) const;
+    bool callCode(const char *filename, void *base, void *arg, void **result) const;
 
 private:
     bool searchExecZone(void **base) const;
@@ -27,9 +26,6 @@ public:
 public:
     bool readMemory(void *address, void *buffer, unsigned long length) const;
     bool writeMemory(void *address, void *buffer, unsigned long length) const;
-
-private:
-    static bool loadShellcode(const char *name, void **begin, void **entry, void **end) ;
 
 private:
     bool cancelSyscall() const;

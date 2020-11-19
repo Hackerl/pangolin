@@ -1,4 +1,5 @@
 #include "pt_inject.h"
+#include "shellcode.h"
 #include <sys/ptrace.h>
 #include <sys/uio.h>
 #include <elf.h>
@@ -7,8 +8,7 @@
 #include <sys/wait.h>
 #include <syscall.h>
 #include <common/log.h>
-#include <dlfcn.h>
-#include <common/utils/path.h>
+#include <common/utils/process.h>
 
 CPTInject::CPTInject(int pid) {
     mPid = pid;
@@ -57,16 +57,20 @@ bool CPTInject::detach() {
     return true;
 }
 
-bool CPTInject::runCode(const char *shellcode, void *base, void *arg) const {
-    void *begin = nullptr;
-    void *entry = nullptr;
-    void *end = nullptr;
+bool CPTInject::runCode(const char *filename, void *base, void *arg) const {
+    CShellcode shellcode;
 
-    if (!loadShellcode(shellcode, &begin, &entry, &end))
+    if (!shellcode.open(filename) || !shellcode.load()) {
+        LOG_ERROR("shellcode load failed");
         return false;
+    }
 
-    unsigned long offset = (unsigned long)entry - (unsigned long)begin;
-    unsigned long length = (unsigned long)end - (unsigned long)begin;
+    unsigned long begin = shellcode.getBegin();
+    unsigned long entry = shellcode.getEntry();
+    unsigned long end = shellcode.getEnd();
+
+    unsigned long offset = entry - begin;
+    unsigned long length = end - begin;
 
     void *memoryBase = base;
     std::unique_ptr<unsigned char> memoryBackup(new unsigned char[length + sizeof(long)]());
@@ -83,7 +87,7 @@ bool CPTInject::runCode(const char *shellcode, void *base, void *arg) const {
 
     LOG_INFO("inject code at: 0x%lx entry: 0x%lx size: 0x%lx", (unsigned long)memoryBase, offset, length);
 
-    if (!writeMemory(memoryBase, begin, length))
+    if (!writeMemory(memoryBase, (void *)begin, length))
         return false;
 
     user_regs_struct modifyRegs = mRegister;
@@ -136,16 +140,20 @@ bool CPTInject::runCode(const char *shellcode, void *base, void *arg) const {
     return true;
 }
 
-bool CPTInject::callCode(const char *shellcode, void *base, void *arg, void **result) const {
-    void *begin = nullptr;
-    void *entry = nullptr;
-    void *end = nullptr;
+bool CPTInject::callCode(const char *filename, void *base, void *arg, void **result) const {
+    CShellcode shellcode;
 
-    if (!loadShellcode(shellcode, &begin, &entry, &end))
+    if (!shellcode.open(filename) || !shellcode.load()) {
+        LOG_ERROR("shellcode load failed");
         return false;
+    }
 
-    unsigned long offset = (unsigned long)entry - (unsigned long)begin;
-    unsigned long length = (unsigned long)end - (unsigned long)begin;
+    unsigned long begin = shellcode.getBegin();
+    unsigned long entry = shellcode.getEntry();
+    unsigned long end = shellcode.getEnd();
+
+    unsigned long offset = entry - begin;
+    unsigned long length = end - begin;
 
     void *memoryBase = base;
     std::unique_ptr<unsigned char> memoryBackup(new unsigned char[length + sizeof(long)]());
@@ -162,7 +170,7 @@ bool CPTInject::callCode(const char *shellcode, void *base, void *arg, void **re
 
     LOG_INFO("inject code at: 0x%lx entry: 0x%lx size: 0x%lx", (unsigned long)memoryBase, offset, length);
 
-    if (!writeMemory(memoryBase, begin, length))
+    if (!writeMemory(memoryBase, (void *)begin, length))
         return false;
 
     user_regs_struct modifyRegs = mRegister;
@@ -318,26 +326,4 @@ bool CPTInject::searchExecZone(void **base) const {
     }
 
     return found;
-}
-
-bool CPTInject::loadShellcode(const char *name, void **begin, void **entry, void **end) {
-    std::string path = CPath::join(CPath::getAPPDir(), name);
-
-    void* DLHandle = dlopen(path.c_str(), RTLD_LAZY);
-
-    if (!DLHandle)
-        return false;
-
-    *begin = dlsym(DLHandle, "shellcode_begin");
-    *entry = dlsym(DLHandle, "shellcode_start");
-    *end = dlsym(DLHandle, "shellcode_end");
-
-    if (!*begin || !*entry || !*end) {
-        LOG_ERROR("load shellcode %s failed", name);
-
-        dlclose(DLHandle);
-        return false;
-    }
-
-    return true;
 }
