@@ -103,7 +103,7 @@ int elf_map(char *path, unsigned long base_address, unsigned long *auxv, unsigne
 
     unsigned long eop_elf = base_offset + elf_hdr->e_entry;
 
-    unsigned long base_segment  = 0;
+    unsigned long base_segment = 0;
     unsigned long base_next = 0;
 
     for (int i = 0; i < elf_hdr->e_phnum; i++) {
@@ -114,7 +114,7 @@ int elf_map(char *path, unsigned long base_address, unsigned long *auxv, unsigne
             return -1;
         }
 
-        if (!base_segment)
+        if (i == 0)
             base_segment = p_hdr->p_vaddr;
 
         base_next = p_hdr->p_vaddr + p_hdr->p_memsz > base_next ? p_hdr->p_vaddr + p_hdr->p_memsz : base_next;
@@ -154,6 +154,7 @@ int elf_map(char *path, unsigned long base_address, unsigned long *auxv, unsigne
         LOG("setting auxv");
 
         set_auxv(auxv, AT_PHDR, base_segment + elf_hdr->e_phoff);
+        set_auxv(auxv, AT_PHENT, elf_hdr->e_phentsize);
         set_auxv(auxv, AT_PHNUM, elf_hdr->e_phnum);
         set_auxv(auxv, AT_ENTRY, eop_elf);
         set_auxv(auxv, AT_BASE, base_segment);
