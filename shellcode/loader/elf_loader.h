@@ -103,19 +103,25 @@ int elf_map(char *path, unsigned long base_address, unsigned long *auxv, unsigne
 
     unsigned long eop_elf = base_offset + elf_hdr->e_entry;
 
+    int base_set = 0;
+
     unsigned long base_segment = 0;
     unsigned long base_next = 0;
 
     for (int i = 0; i < elf_hdr->e_phnum; i++) {
         Elf64_Phdr *p_hdr = (Elf64_Phdr *)(elf_buffer + elf_hdr->e_phoff + i * elf_hdr->e_phentsize);
 
-        if (p_hdr->p_type == PT_LOAD && load_segment(elf_buffer, p_hdr, base_offset)) {
-            _munmap(elf_buffer, (int)file_size);
-            return -1;
-        }
+        if (p_hdr->p_type == PT_LOAD) {
+            if (!base_set) {
+                base_set = 1;
+                base_segment = p_hdr->p_vaddr;
+            }
 
-        if (i == 0)
-            base_segment = p_hdr->p_vaddr;
+            if (load_segment(elf_buffer, p_hdr, base_offset) < 0) {
+                _munmap(elf_buffer, (int)file_size);
+                return -1;
+            }
+        }
 
         base_next = p_hdr->p_vaddr + p_hdr->p_memsz > base_next ? p_hdr->p_vaddr + p_hdr->p_memsz : base_next;
     }
