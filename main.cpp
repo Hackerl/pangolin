@@ -35,6 +35,9 @@ int main(int argc, char ** argv) {
 
     CPTInject ptInject(pid);
 
+    if (!ptInject.init())
+        return -1;
+
     if (!ptInject.attach())
         return -1;
 

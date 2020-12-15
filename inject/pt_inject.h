@@ -1,12 +1,16 @@
 #ifndef PANGOLIN_PT_INJECT_H
 #define PANGOLIN_PT_INJECT_H
 
+#include <list>
 #include <sys/user.h>
 
 class CPTInject {
 public:
     explicit CPTInject(int pid);
     ~CPTInject();
+
+public:
+    bool init();
 
 public:
     bool attach();
@@ -33,6 +37,7 @@ private:
 public:
     int mPid;
     bool mAttached;
+    std::list<int> mThreads;
     user_regs_struct mRegister{};
 };
 

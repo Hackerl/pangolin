@@ -9,6 +9,7 @@
 #include <syscall.h>
 #include <common/log.h>
 #include <common/utils/process.h>
+#include <common/utils/file_walk.h>
 
 CPTInject::CPTInject(int pid) {
     mPid = pid;
@@ -21,16 +22,18 @@ CPTInject::~CPTInject() {
 }
 
 bool CPTInject::attach() {
-    if (ptrace(PTRACE_ATTACH, mPid, nullptr, nullptr) < 0) {
-        LOG_ERROR("attach process failed");
-        return false;
-    }
+    for (const auto& t: mThreads){
+        if (ptrace(PTRACE_ATTACH, t, nullptr, nullptr) < 0) {
+            LOG_ERROR("attach thread failed: %d", t);
+            return false;
+        }
 
-    int s = 0;
+        int s = 0;
 
-    if (waitpid(mPid, &s, WUNTRACED) != mPid) {
-        LOG_ERROR("wait pid failed");
-        return false;
+        if (waitpid(t, &s, WUNTRACED) != t) {
+            LOG_ERROR("wait pid failed: %d",  t);
+            return false;
+        }
     }
 
     if (!getRegister(mRegister))
@@ -46,9 +49,11 @@ bool CPTInject::detach() {
     if (!setRegister(mRegister))
         return false;
 
-    if (ptrace(PTRACE_DETACH, mPid, nullptr, nullptr) < 0) {
-        LOG_ERROR("detach process failed");
-        return false;
+    for (const auto& t: mThreads){
+        if (ptrace(PTRACE_DETACH, t, nullptr, nullptr) < 0) {
+            LOG_ERROR("detach thread failed: %d", t);
+            continue;
+        }
     }
 
     LOG_INFO("detach process success");
@@ -181,16 +186,21 @@ bool CPTInject::callCode(const char *filename, void *base, void *arg, void **res
     if (!setRegister(modifyRegs))
         return false;
 
-    if (ptrace(PTRACE_CONT, mPid, nullptr, nullptr) < 0) {
-        LOG_ERROR("trace continue failed");
-        return false;
-    }
-
     int s = 0;
 
-    if (waitpid(mPid, &s, 0) < 0 || WIFEXITED(s)) {
-        LOG_ERROR("wait pid failed");
-        return false;
+    while (true) {
+        if (ptrace(PTRACE_CONT, mPid, nullptr, nullptr) < 0) {
+            LOG_ERROR("trace continue failed");
+            return false;
+        }
+
+        if (waitpid(mPid, &s, 0) < 0 || WIFEXITED(s)) {
+            LOG_ERROR("wait pid failed");
+            return false;
+        }
+
+        if (WSTOPSIG(s) == SIGTRAP || WSTOPSIG(s) == SIGSEGV)
+            break;
     }
 
     LOG_INFO("restore memory");
@@ -326,4 +336,21 @@ bool CPTInject::searchExecZone(void **base) const {
     }
 
     return found;
+}
+
+bool CPTInject::init() {
+    std::string path = CPath::join("/proc", std::to_string(mPid), "task");
+
+    for (const auto& i: CFileWalk(path.c_str())) {
+        int thread = 0;
+
+        if (!CStringHelper::toNumber(i.filename, thread)) {
+            LOG_ERROR("parse thread id failed: %s", i.filename.c_str());
+            return false;
+        }
+
+        mThreads.emplace_back(thread);
+    }
+
+    return true;
 }
