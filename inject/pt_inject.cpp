@@ -34,6 +34,11 @@ bool CPTInject::attach() {
             LOG_ERROR("wait pid failed: %d",  t);
             return false;
         }
+
+        if (WSTOPSIG(s) != SIGSTOP) {
+            LOG_ERROR("attach recv signal: %s", strsignal(WSTOPSIG(s)));
+            return false;
+        }
     }
 
     if (!getRegister(mRegister))
@@ -103,8 +108,10 @@ bool CPTInject::runCode(const char *filename, void *base, void *arg) const {
     if (!setRegister(modifyRegs))
         return false;
 
+    int sig = 0;
+
     while (true) {
-        if (ptrace(PTRACE_SYSCALL, mPid, nullptr, nullptr) < 0) {
+        if (ptrace(PTRACE_SYSCALL, mPid, nullptr, sig) < 0) {
             LOG_ERROR("trace syscall failed");
             return false;
         }
@@ -121,9 +128,15 @@ bool CPTInject::runCode(const char *filename, void *base, void *arg) const {
         if (!getRegister(currentRegs))
             return false;
 
-        if (WSTOPSIG(s) == SIGSEGV){
+        if (WSTOPSIG(s) == SIGSEGV) {
             LOG_ERROR("segmentation fault: 0x%llx", currentRegs.rip);
             break;
+        }
+
+        if (WSTOPSIG(s) != SIGTRAP) {
+            sig = WSTOPSIG(s);
+            LOG_WARNING("recv signal: %s", strsignal(sig));
+            continue;
         }
 
         if (currentRegs.orig_rax == -1) {
@@ -186,21 +199,27 @@ bool CPTInject::callCode(const char *filename, void *base, void *arg, void **res
     if (!setRegister(modifyRegs))
         return false;
 
-    int s = 0;
+    int sig = 0;
 
     while (true) {
-        if (ptrace(PTRACE_CONT, mPid, nullptr, nullptr) < 0) {
+        if (ptrace(PTRACE_CONT, mPid, nullptr, sig) < 0) {
             LOG_ERROR("trace continue failed");
             return false;
         }
+
+        int s = 0;
 
         if (waitpid(mPid, &s, 0) < 0 || WIFEXITED(s)) {
             LOG_ERROR("wait pid failed");
             return false;
         }
 
-        if (WSTOPSIG(s) == SIGTRAP || WSTOPSIG(s) == SIGSEGV)
+        sig = WSTOPSIG(s);
+
+        if (sig == SIGTRAP || sig == SIGSEGV)
             break;
+
+        LOG_WARNING("recv signal: %s", strsignal(sig));
     }
 
     LOG_INFO("restore memory");
@@ -213,7 +232,7 @@ bool CPTInject::callCode(const char *filename, void *base, void *arg, void **res
     if (!getRegister(currentRegs))
         return false;
 
-    if (WSTOPSIG(s) == SIGSEGV) {
+    if (sig == SIGSEGV) {
         LOG_ERROR("segmentation fault: 0x%llx", currentRegs.rip);
         return false;
     }
