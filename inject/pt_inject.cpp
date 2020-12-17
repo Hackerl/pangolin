@@ -128,16 +128,19 @@ bool CPTInject::runCode(const char *filename, void *base, void *arg) const {
         if (!getRegister(currentRegs))
             return false;
 
-        if (WSTOPSIG(s) == SIGSEGV) {
+        sig = WSTOPSIG(s);
+
+        if (sig == SIGSEGV) {
             LOG_ERROR("segmentation fault: 0x%llx", currentRegs.rip);
             break;
         }
 
-        if (WSTOPSIG(s) != SIGTRAP) {
-            sig = WSTOPSIG(s);
-            LOG_WARNING("recv signal: %s", strsignal(sig));
+        if (sig != SIGTRAP) {
+            LOG_INFO("recv signal: %s", strsignal(sig));
             continue;
         }
+
+        sig = 0;
 
         if (currentRegs.orig_rax == -1) {
             LOG_INFO("break exit syscall");
@@ -155,7 +158,7 @@ bool CPTInject::runCode(const char *filename, void *base, void *arg) const {
     if (!writeMemory(memoryBase, memoryBackup.get(), length))
         return false;
 
-    return true;
+    return sig != SIGSEGV;
 }
 
 bool CPTInject::callCode(const char *filename, void *base, void *arg, void **result) const {
@@ -219,7 +222,7 @@ bool CPTInject::callCode(const char *filename, void *base, void *arg, void **res
         if (sig == SIGTRAP || sig == SIGSEGV)
             break;
 
-        LOG_WARNING("recv signal: %s", strsignal(sig));
+        LOG_INFO("recv signal: %s", strsignal(sig));
     }
 
     LOG_INFO("restore memory");
