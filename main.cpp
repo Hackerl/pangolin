@@ -47,7 +47,7 @@ int main(int argc, char ** argv) {
         return -1;
     }
 
-    LOG_INFO("malloc memory: 0x%lx", (unsigned long)result);
+    LOG_INFO("malloc memory: %p", result);
 
     ptInject.writeMemory(result, &loaderArgs, sizeof(loaderArgs));
 
@@ -57,7 +57,7 @@ int main(int argc, char ** argv) {
         return -1;
     }
 
-    LOG_INFO("free memory: 0x%lx", (unsigned long)result);
+    LOG_INFO("free memory: %p", result);
 
     if (!ptInject.callCode("libshrink.so", nullptr, result, nullptr)) {
         return -1;

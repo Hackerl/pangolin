@@ -95,7 +95,7 @@ bool CPTInject::runCode(const char *filename, void *base, void *arg) const {
     if (!readMemory(memoryBase, memoryBackup.get(), length))
         return false;
 
-    LOG_INFO("inject code at: 0x%lx entry: 0x%lx size: 0x%lx", (unsigned long)memoryBase, offset, length);
+    LOG_INFO("inject code at: %p entry: 0x%lx size: 0x%lx", memoryBase, offset, length);
 
     if (!writeMemory(memoryBase, (void *)begin, length))
         return false;
@@ -189,7 +189,7 @@ bool CPTInject::callCode(const char *filename, void *base, void *arg, void **res
     if (!readMemory(memoryBase, memoryBackup.get(), length))
         return false;
 
-    LOG_INFO("inject code at: 0x%lx entry: 0x%lx size: 0x%lx", (unsigned long)memoryBase, offset, length);
+    LOG_INFO("inject code at: %p entry: 0x%lx size: 0x%lx", memoryBase, offset, length);
 
     if (!writeMemory(memoryBase, (void *)begin, length))
         return false;
