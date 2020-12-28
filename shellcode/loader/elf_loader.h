@@ -14,7 +14,6 @@
 #include <elf.h>
 
 #define MOD_OFFSET_NEXT     0x10000
-#define FAKE_STACK_SIZE     4096 * 16
 
 #define ALIGN_PAGE_UP(x)    do { if((x) % PAGE_SIZE) (x) += (PAGE_SIZE - ((x) % PAGE_SIZE)); } while(0)
 #define ALIGN_PAGE_DOWN(x)  do { if((x) % PAGE_SIZE) (x) -= ((x) % PAGE_SIZE); } while(0)
@@ -199,16 +198,16 @@ void elf_loader(struct CLoaderArgs* loader_args) {
         LOG("env %d: %s", i, env[i]);
     }
 
-    unsigned char *fake_stack = malloc(FAKE_STACK_SIZE);
-    unsigned char *fake_stack_top = fake_stack + FAKE_STACK_SIZE;
+    unsigned char fake_stack[4096 * 16] = {};
+    unsigned char *fake_stack_top = fake_stack + sizeof(fake_stack);
 
     unsigned char *fake_stack_ptr = make_fake_stack(fake_stack_top, loader_args->arg_count,
                                                     av, env, (unsigned long *)loader_args->auxv);
 
-    LOG("fake stack: %p", fake_stack_ptr);
+    LOG("fake stack: 0x%lx", fake_stack_ptr);
     LOG("starting ...");
 
-    FIX_SP_JMP(fake_stack_ptr, eop);
+    FIX_SP_JMP(fake_stack_ptr, eop, NULL);
 }
 
 #endif //PANGOLIN_ELF_LOADER_H
