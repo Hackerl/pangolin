@@ -4,6 +4,12 @@
 #include <common/log.h>
 #include <common/utils/string_helper.h>
 
+constexpr auto PANGOLIN_WORKSPACE_SIZE = 0x10000;
+
+constexpr auto SPREAD_SHELLCODE = "libspread.so";
+constexpr auto LOADER_SHELLCODE = "libloader.so";
+constexpr auto SHRINK_SHELLCODE = "libshrink.so";
+
 int main(int argc, char ** argv) {
     cmdline::parser parse;
 
@@ -23,43 +29,54 @@ int main(int argc, char ** argv) {
 
     CLoaderArgs loaderArgs = {};
 
-    if (!base.empty())
+    if (!base.empty()) {
+        LOG_INFO("custom base address: %s", base.c_str());
         CStringHelper::toNumber(base, loaderArgs.base_address, 16);
+    }
 
     CShareArgs shareArgs(pid, command, env);
 
-    if (!shareArgs.getLoaderArgs(loaderArgs))
+    if (!shareArgs.getLoaderArgs(loaderArgs)) {
+        LOG_ERROR("get loader arguments failed");
         return -1;
+    }
 
     LOG_INFO("inject '%s' to process %d at 0x%lx", loaderArgs.arg, pid, loaderArgs.base_address);
 
     CPTInject ptInject(pid);
 
-    if (!ptInject.init())
-        return -1;
-
-    if (!ptInject.attach())
-        return -1;
-
-    void *result = nullptr;
-
-    if (!ptInject.callCode("libspread.so", nullptr, (void *)0x10000, &result)) {
+    if (!ptInject.init()) {
+        LOG_ERROR("ptrace injector init failed");
         return -1;
     }
 
-    LOG_INFO("malloc memory: %p", result);
+    if (!ptInject.attach()) {
+        LOG_ERROR("ptrace injector attach failed");
+        return -1;
+    }
+
+    void *result = nullptr;
+
+    if (!ptInject.callCode(SPREAD_SHELLCODE, nullptr, (void *)PANGOLIN_WORKSPACE_SIZE, &result)) {
+        LOG_ERROR("call spread shellcode failed");
+        return -1;
+    }
+
+    LOG_INFO("workspace: %p", result);
 
     ptInject.writeMemory(result, &loaderArgs, sizeof(loaderArgs));
 
     auto injectBase = (unsigned long)result + PAGE_SIZE - (unsigned long)result % PAGE_SIZE;
 
-    if (!ptInject.runCode("libloader.so", (void *)injectBase, result)) {
+    if (!ptInject.runCode(LOADER_SHELLCODE, (void *)injectBase, result)) {
+        LOG_ERROR("run loader shellcode failed");
         return -1;
     }
 
-    LOG_INFO("free memory: %p", result);
+    LOG_INFO("free workspace: %p", result);
 
-    if (!ptInject.callCode("libshrink.so", nullptr, result, nullptr)) {
+    if (!ptInject.callCode(SHRINK_SHELLCODE, nullptr, result, nullptr)) {
+        LOG_ERROR("call shrink shellcode failed");
         return -1;
     }
 
