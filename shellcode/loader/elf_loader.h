@@ -12,6 +12,7 @@
 #include <stddef.h>
 #include <sys/user.h>
 #include <elf.h>
+#include <asm/prctl.h>
 
 #define MOD_OFFSET_NEXT     0x10000
 
@@ -185,18 +186,29 @@ void elf_loader(struct CLoaderArgs* loader_args) {
         return;
     }
 
+    unsigned long fs = 0, gs = 0;
+
+    if (_arch_prctl(ARCH_GET_FS, &fs) != 0 || _arch_prctl(ARCH_GET_GS, &gs) != 0) {
+        LOG("get fs/gs register failed");
+        return;
+    }
+
+    char fs_env[256] = {};
+    char gs_env[256] = {};
+
+    snprintf(fs_env, sizeof(fs_env), "FS=0x%lx", fs);
+    snprintf(gs_env, sizeof(gs_env), "GS=0x%lx", gs);
+
     char *av[256] = {};
-    char *env[256] = {};
+    char *env[256] = {fs_env, gs_env};
 
-    for (int i = 0; i < loader_args->arg_count; i++) {
+    for (int i = 0; i < loader_args->arg_count; i++)
         av[i] = i == 0 ? loader_args->arg : av[i-1] + strlen(av[i-1]) + 1;
-        LOG("arg %d: %s", i, av[i]);
-    }
 
-    for (int i = 0; i < loader_args->env_count; i++) {
-        env[i] = i == 0 ? loader_args->env : env[i-1] + strlen(env[i-1]) + 1;
-        LOG("env %d: %s", i, env[i]);
-    }
+    char **env_custom = env + 2;
+
+    for (int i = 0; i < loader_args->env_count; i++)
+        env_custom[i] = i == 0 ? loader_args->env : env_custom[i-1] + strlen(env_custom[i-1]) + 1;
 
     unsigned char fake_stack[4096 * 16] = {};
     unsigned char *fake_stack_top = fake_stack + sizeof(fake_stack);

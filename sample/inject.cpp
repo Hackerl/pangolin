@@ -7,6 +7,9 @@ int main(int ac, char ** av, char ** env) {
     for(int i = 0; i < ac; i++)
         std::cout << "# arg " << i << ": " << av[i] << std::endl;
 
+    for(char **e = env; *e != nullptr; e++)
+        std::cout << "# env: " << *e << std::endl;
+
     for (int i = 0; i < 3; i++) {
         std::cout << "# :)" << std::endl;
         sleep(1);
