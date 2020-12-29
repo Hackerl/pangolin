@@ -20,7 +20,7 @@ bool CShellcode::load(const std::string &file) {
 
     if (it == mReader.sections.end()) {
         LOG_ERROR("can't find symbol section");
-        return -1;
+        return false;
     }
 
     ELFIO::Elf64_Addr begin = 0;
@@ -40,7 +40,7 @@ bool CShellcode::load(const std::string &file) {
 
         if (!symbols.get_symbol(i, name, value, size, bind, type, section,other)) {
             LOG_ERROR("get symbol %lu failed", i);
-            return -1;
+            return false;
         }
 
         if (name == SHELLCODE_BEGIN)
@@ -65,7 +65,7 @@ bool CShellcode::load(const std::string &file) {
 
     if (sit == mReader.sections.end()) {
         LOG_ERROR("can't find text section");
-        return -1;
+        return false;
     }
 
     auto data = (*sit)->get_data();
