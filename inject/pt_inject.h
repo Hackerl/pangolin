@@ -17,7 +17,7 @@ public:
     bool detach();
 
 public:
-    bool runCode(const char *filename, void *base, void *arg) const;
+    bool runCode(const char *filename, void *base, void *arg, int &status) const;
     bool callCode(const char *filename, void *base, void *arg, void **result) const;
 
 private:

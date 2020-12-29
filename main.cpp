@@ -66,9 +66,10 @@ int main(int argc, char ** argv) {
 
     ptInject.writeMemory(result, &loaderArgs, sizeof(loaderArgs));
 
-    auto injectBase = (unsigned long)result + PAGE_SIZE - (unsigned long)result % PAGE_SIZE;
+    int status = 0;
+    unsigned long injectBase = ((unsigned long)result + PAGE_SIZE) & ~(PAGE_SIZE - 1);
 
-    if (!ptInject.runCode(LOADER_SHELLCODE, (void *)injectBase, result)) {
+    if (!ptInject.runCode(LOADER_SHELLCODE, (void *)injectBase, result, status)) {
         LOG_ERROR("run loader shellcode failed");
         return -1;
     }
@@ -82,5 +83,5 @@ int main(int argc, char ** argv) {
 
     ptInject.detach();
 
-    return 0;
+    return status;
 }

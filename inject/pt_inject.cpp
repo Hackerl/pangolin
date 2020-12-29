@@ -67,7 +67,7 @@ bool CPTInject::detach() {
     return true;
 }
 
-bool CPTInject::runCode(const char *filename, void *base, void *arg) const {
+bool CPTInject::runCode(const char *filename, void *base, void *arg, int &status) const {
     CShellcode shellcode;
 
     if (!shellcode.load(filename)) {
@@ -139,12 +139,12 @@ bool CPTInject::runCode(const char *filename, void *base, void *arg) const {
         sig = 0;
 
         if (currentRegs.orig_rax == -1) {
-            LOG_INFO("break exit syscall");
+            LOG_INFO("exit status: %d", status);
             break;
         }
 
         if (currentRegs.orig_rax == SYS_exit || currentRegs.orig_rax == SYS_exit_group) {
-            LOG_INFO("cancel exit syscall");
+            status = (int)currentRegs.rdi;
             cancelSyscall();
         }
     }
