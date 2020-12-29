@@ -4,3 +4,6 @@
 [submodule "shellcode/crt"]
 	path = shellcode/crt
 	url = https://github.com/Hackerl/crt
+[submodule "cmake"]
+	path = cmake
+	url = https://github.com/Hackerl/cmake-3rd

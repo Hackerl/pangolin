@@ -1,27 +1,20 @@
 #ifndef PANGOLIN_SHELLCODE_H
 #define PANGOLIN_SHELLCODE_H
 
+#include <string>
+#include <elfio/elfio.hpp>
+
 class CShellcode {
 public:
-    CShellcode();
-    ~CShellcode();
+    bool load(const std::string& file);
 
 public:
-    bool open(const char *filename);
-    bool load();
-    void close();
-
-public:
-    unsigned long getBegin() const;
-    unsigned long getEntry() const;
-    unsigned long getEnd() const;
+    const char *mBegin;
+    const char *mEntry;
+    const char *mEnd;
 
 private:
-    void *mBuffer;
-    long mBufferLength;
-    unsigned long mBegin;
-    unsigned long mEntry;
-    unsigned long mEnd;
+    ELFIO::elfio mReader;
 };
 
 

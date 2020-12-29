@@ -1,5 +1,6 @@
 #include "sh_args.h"
 #include <cstring>
+#include <common/utils/path.h>
 #include <common/utils/process.h>
 #include <common/log.h>
 #include <wordexp.h>
@@ -69,13 +70,13 @@ bool CShareArgs::getBaseAddress(unsigned long& baseAddress) const {
 }
 
 bool CShareArgs::setAux(CLoaderArgs &loaderArgs) const {
-    std::string auxPath = "/proc/" + std::to_string(mPid) + "/auxv";
-    std::ifstream infile(auxPath, std::ifstream::binary);
+    std::string path = CPath::join("/proc", std::to_string(mPid), "auxv");
+    std::ifstream ifs(path, std::ifstream::binary);
 
-    if (!infile.is_open())
+    if (!ifs.is_open())
         return false;
 
-    infile.read((char *)loaderArgs.auxv, sizeof(loaderArgs.auxv));
+    ifs.read((char *)loaderArgs.auxv, sizeof(loaderArgs.auxv));
 
     return true;
 }
@@ -84,7 +85,7 @@ bool CShareArgs::wordExp(const std::string &str, std::list<std::string>& words) 
     wordexp_t p = {};
 
     if (wordexp(str.c_str(), &p, 0) != 0) {
-        LOG_ERROR("'%s' word exp failed", str.c_str());
+        LOG_ERROR("word exp '%s' failed", str.c_str());
         return false;
     }
 

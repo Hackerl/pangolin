@@ -70,17 +70,13 @@ bool CPTInject::detach() {
 bool CPTInject::runCode(const char *filename, void *base, void *arg) const {
     CShellcode shellcode;
 
-    if (!shellcode.open(filename) || !shellcode.load()) {
+    if (!shellcode.load(filename)) {
         LOG_ERROR("shellcode load failed");
         return false;
     }
 
-    unsigned long begin = shellcode.getBegin();
-    unsigned long entry = shellcode.getEntry();
-    unsigned long end = shellcode.getEnd();
-
-    unsigned long offset = entry - begin;
-    unsigned long length = end - begin;
+    unsigned long offset = shellcode.mEntry - shellcode.mBegin;
+    unsigned long length = shellcode.mEnd - shellcode.mBegin;
 
     void *memoryBase = base;
     std::unique_ptr<unsigned char> memoryBackup(new unsigned char[length + sizeof(long)]());
@@ -97,7 +93,7 @@ bool CPTInject::runCode(const char *filename, void *base, void *arg) const {
 
     LOG_INFO("inject code at: %p entry: 0x%lx size: 0x%lx", memoryBase, offset, length);
 
-    if (!writeMemory(memoryBase, (void *)begin, length))
+    if (!writeMemory(memoryBase, (void *)shellcode.mBegin, length))
         return false;
 
     user_regs_struct modifyRegs = mRegister;
@@ -164,17 +160,13 @@ bool CPTInject::runCode(const char *filename, void *base, void *arg) const {
 bool CPTInject::callCode(const char *filename, void *base, void *arg, void **result) const {
     CShellcode shellcode;
 
-    if (!shellcode.open(filename) || !shellcode.load()) {
+    if (!shellcode.load(filename)) {
         LOG_ERROR("shellcode load failed");
         return false;
     }
 
-    unsigned long begin = shellcode.getBegin();
-    unsigned long entry = shellcode.getEntry();
-    unsigned long end = shellcode.getEnd();
-
-    unsigned long offset = entry - begin;
-    unsigned long length = end - begin;
+    unsigned long offset = shellcode.mEntry - shellcode.mBegin;
+    unsigned long length = shellcode.mEnd - shellcode.mBegin;
 
     void *memoryBase = base;
     std::unique_ptr<unsigned char> memoryBackup(new unsigned char[length + sizeof(long)]());
@@ -191,7 +183,7 @@ bool CPTInject::callCode(const char *filename, void *base, void *arg, void **res
 
     LOG_INFO("inject code at: %p entry: 0x%lx size: 0x%lx", memoryBase, offset, length);
 
-    if (!writeMemory(memoryBase, (void *)begin, length))
+    if (!writeMemory(memoryBase, (void *)shellcode.mBegin, length))
         return false;
 
     user_regs_struct modifyRegs = mRegister;
