@@ -23,9 +23,9 @@ bool CShellcode::load(const std::string &file) {
         return false;
     }
 
-    ELFIO::Elf64_Addr begin = 0;
-    ELFIO::Elf64_Addr entry = 0;
-    ELFIO::Elf64_Addr end = 0;
+    ELFIO::Elf64_Addr begin = -1;
+    ELFIO::Elf64_Addr entry = -1;
+    ELFIO::Elf64_Addr end = -1;
 
     ELFIO::symbol_section_accessor symbols(mReader, *it);
 
@@ -51,7 +51,7 @@ bool CShellcode::load(const std::string &file) {
             end = value;
     }
 
-    if (!begin || !entry || !end) {
+    if (begin == -1 || entry == -1 || end == -1) {
         LOG_ERROR("can't find shellcode symbols");
         return false;
     }
