@@ -72,17 +72,29 @@ int load_segment(unsigned char *elf, Elf64_Phdr *p_hdr, unsigned long base_offse
 int elf_map(char *path, unsigned long base_address, unsigned long *auxv, unsigned long *out_eop) {
     LOG("mapping '%s' into memory at 0x%lx", path, base_address);
 
+    struct stat sb = {};
+
+    if (_stat(path, &sb) < 0) {
+        LOG("stat file failed: %s", path);
+        return -1;
+    }
+
+    if ((sb.st_mode & S_IFREG) == 0) {
+        LOG("file type invalid: %s", path);
+        return -1;
+    }
+
     int fd = _open(path, O_RDONLY, 0);
 
     if (fd < 0) {
-        LOG("open elf failed");
+        LOG("open elf failed: %s", path);
         return -1;
     }
 
     long file_size = get_file_size(fd);
 
     if (file_size <= 0) {
-        LOG("get file size failed");
+        LOG("get file size failed: %s", path);
         _close(fd);
         return -1;
     }
