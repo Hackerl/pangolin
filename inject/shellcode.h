@@ -6,7 +6,7 @@
 
 class CShellcode {
 public:
-    bool load(const std::string& file);
+    bool load(const std::string& filename);
 
 public:
     const char *mBegin;

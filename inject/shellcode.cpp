@@ -1,13 +1,16 @@
 #include "shellcode.h"
 #include <common/log.h>
+#include <common/utils/path.h>
 
 constexpr auto SHELLCODE_BEGIN = "shellcode_begin";
 constexpr auto SHELLCODE_ENTRY = "shellcode_start";
 constexpr auto SHELLCODE_END = "shellcode_end";
 
-bool CShellcode::load(const std::string &file) {
-    if (!mReader.load(file)) {
-        LOG_ERROR("open shellcode failed: %s", file.c_str());
+bool CShellcode::load(const std::string &filename) {
+    std::string path = CPath::join(CPath::getAPPDir(), filename);
+
+    if (!mReader.load(path)) {
+        LOG_ERROR("open shellcode failed: %s", filename.c_str());
         return false;
     }
 
