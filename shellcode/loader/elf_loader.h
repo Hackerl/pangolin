@@ -183,14 +183,14 @@ void elf_loader(struct CLoaderArgs* loader_args) {
 
     if (elf_map(loader_args->arg, loader_args->base_address, (unsigned long *)loader_args->auxv, &eop) < 0) {
         LOG("map elf failed");
-        return;
+        __exit(-1);
     }
 
     unsigned long fs = 0, gs = 0;
 
     if (_arch_prctl(ARCH_GET_FS, &fs) != 0 || _arch_prctl(ARCH_GET_GS, &gs) != 0) {
         LOG("get fs/gs register failed");
-        return;
+        __exit(-1);
     }
 
     char fs_env[256] = {};
@@ -220,6 +220,8 @@ void elf_loader(struct CLoaderArgs* loader_args) {
     LOG("starting ...");
 
     FIX_SP_JMP(fake_stack_ptr, eop, NULL);
+
+    __exit(0);
 }
 
 #endif //PANGOLIN_ELF_LOADER_H

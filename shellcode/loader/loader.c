@@ -14,8 +14,6 @@ void loader_main(void *ptr) {
     char *stack_top = stack + STACK_SIZE;
 
     FIX_SP_JMP(stack_top, elf_loader, ptr);
-
-    __exit(0);
 }
 
 void __attribute__ ((visibility ("default"))) shellcode_start() {
