@@ -89,7 +89,7 @@ int elf_map(char *path, unsigned long base_address, unsigned long *auxv, unsigne
 
     void *elf_buffer = _mmap(NULL, (size_t)file_size, PROT_READ, MAP_PRIVATE, fd, 0);
 
-    if (!elf_buffer) {
+    if ((unsigned long)elf_buffer < 0) {
         _close(fd);
         return -1;
     }
