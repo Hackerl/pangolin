@@ -339,17 +339,19 @@ bool CPTInject::searchExecZone(void **base) const {
         return false;
     }
 
-    bool found = false;
+    auto it = std::find_if(
+            processMaps.begin(),
+            processMaps.end(),
+            [](const auto& m) {
+                return m.flags == "r-xp" || m.flags == "rwxp";
+            });
 
-    for (const auto& m: processMaps) {
-        if (m.flags == "r-xp" || m.flags == "rwxp") {
-            found = true;
-            *base = (void *)m.start;
-            break;
-        }
-    }
+    if (it == processMaps.end())
+        return false;
 
-    return found;
+    *base = (void *)(*it).start;
+
+    return true;
 }
 
 bool CPTInject::init() {
