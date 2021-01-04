@@ -84,7 +84,7 @@ bool CShareArgs::setAux(CLoaderArgs &loaderArgs) const {
 bool CShareArgs::wordExp(const std::string &str, std::list<std::string>& words) {
     wordexp_t p = {};
 
-    if (wordexp(str.c_str(), &p, 0) != 0) {
+    if (wordexp(str.c_str(), &p, WRDE_NOCMD) != 0) {
         LOG_ERROR("word exp '%s' failed", str.c_str());
         return false;
     }
