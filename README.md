@@ -34,56 +34,55 @@ $ ./target
 
 # in shell 2
 $ ./pangolin -c "$(pwd)/inject 1 '2 3'" -p $(pidof target)
-2020-11-16 10:06:30 | INFO    | main.cpp        |       main:33   | inject '/root/pangolin/bin/inject' to process 3640632 at 0x559797000000
-2020-11-16 10:06:30 | INFO    | pt_inject.cpp   |     attach:39   | attach process success
-2020-11-16 10:06:30 | INFO    | pt_inject.cpp   |   callCode:158  | backup memory
-2020-11-16 10:06:30 | INFO    | pt_inject.cpp   |   callCode:163  | inject code at: 0x559795d10000 entry: 0x11d size: 0x126
-2020-11-16 10:06:30 | INFO    | pt_inject.cpp   |   callCode:188  | restore memory
-2020-11-16 10:06:30 | INFO    | main.cpp        |       main:46   | malloc memory: 0x7f05b2bc3010
-2020-11-16 10:06:30 | INFO    | pt_inject.cpp   |    runCode:79   | backup memory
-2020-11-16 10:06:30 | INFO    | pt_inject.cpp   |    runCode:84   | inject code at: 0x7f05b2bc4000 entry: 0x9bf size: 0x1fa0
-2020-11-16 10:06:33 | INFO    | pt_inject.cpp   |    runCode:126  | cancel exit syscall
-2020-11-16 10:06:33 | INFO    | pt_inject.cpp   |    runCode:121  | break exit syscall
-2020-11-16 10:06:33 | INFO    | pt_inject.cpp   |    runCode:131  | restore memory
-2020-11-16 10:06:33 | INFO    | main.cpp        |       main:56   | free memory: 0x7f05b2bc3010
-2020-11-16 10:06:33 | INFO    | pt_inject.cpp   |   callCode:158  | backup memory
-2020-11-16 10:06:33 | INFO    | pt_inject.cpp   |   callCode:163  | inject code at: 0x559795d10000 entry: 0x26 size: 0x2f
-2020-11-16 10:06:33 | INFO    | pt_inject.cpp   |   callCode:188  | restore memory
-2020-11-16 10:06:33 | INFO    | pt_inject.cpp   |     detach:54   | detach process success
+2021-01-22 14:32:42 | INFO  |             main.cpp:44  ] inject '/root/pangolin/bin/inject' to process 4128237 at 0x7efcd3000000
+2021-01-22 14:32:42 | INFO  |        pt_inject.cpp:47  ] attach process success
+2021-01-22 14:32:42 | INFO  |        pt_inject.cpp:179 ] backup memory
+2021-01-22 14:32:42 | INFO  |        pt_inject.cpp:184 ] inject code at: 0x557e5be09000 entry: 0x11d size: 0x126
+2021-01-22 14:32:42 | INFO  |        pt_inject.cpp:220 ] restore memory
+2021-01-22 14:32:42 | INFO  |             main.cpp:65  ] workspace: 0x7efcd288b010
+2021-01-22 14:32:42 | INFO  |        pt_inject.cpp:89  ] backup memory
+2021-01-22 14:32:42 | INFO  |        pt_inject.cpp:94  ] inject code at: 0x7efcd288c000 entry: 0xb82 size: 0x2240
+2021-01-22 14:32:45 | INFO  |        pt_inject.cpp:142 ] exit status: 0
+2021-01-22 14:32:45 | INFO  |        pt_inject.cpp:152 ] restore memory
+2021-01-22 14:32:45 | INFO  |             main.cpp:77  ] free workspace: 0x7efcd288b010
+2021-01-22 14:32:45 | INFO  |        pt_inject.cpp:179 ] backup memory
+2021-01-22 14:32:45 | INFO  |        pt_inject.cpp:184 ] inject code at: 0x557e5be09000 entry: 0x26 size: 0x2f
+2021-01-22 14:32:45 | INFO  |        pt_inject.cpp:220 ] restore memory
+2021-01-22 14:32:45 | INFO  |        pt_inject.cpp:64  ] detach process success
 
 # back to shell 1
 ...
 > elf loader start
 > target: /root/pangolin/bin/inject arg: 3 env: 0
-> mapping '/root/pangolin/bin/inject' into memory at 0x559797000000
-> load segment addr 0x559797000000 len 0x1000 => 0x559797000000
-> load segment addr 0x559797201d90 len 0x1000 => 0x559797201000
-> max addr 0x559797213000
+> mapping '/root/pangolin/bin/inject' into memory at 0x7efcd3000000
+> load segment addr 0x7efcd3000000 len 0x2000 => 0x7efcd3000000
+> load segment addr 0x7efcd3201d90 len 0x1000 => 0x7efcd3201000
+> max addr 0x7efcd3213000
 > loading interp '/lib64/ld-linux-x86-64.so.2'
-> mapping '/lib64/ld-linux-x86-64.so.2' into memory at 0x559797213000
-> load segment addr 0x559797213000 len 0x23000 => 0x559797213000
-> load segment addr 0x559797436bc0 len 0x2000 => 0x559797436000
-> max addr 0x559797449000
-> eop 0x559797213c20
+> mapping '/lib64/ld-linux-x86-64.so.2' into memory at 0x7efcd3213000
+> load segment addr 0x7efcd3213000 len 0x23000 => 0x7efcd3213000
+> load segment addr 0x7efcd3436bc0 len 0x2000 => 0x7efcd3436000
+> max addr 0x7efcd3449000
+> eop 0x7efcd3213c20
 > setting auxv
-> set auxv[3] to 0x559797000040
+> set auxv[3] to 0x7efcd3000040
+> set auxv[4] to 0x38
 > set auxv[5] to 0x9
-> set auxv[9] to 0x559797000ab0
-> set auxv[7] to 0x559797000000
-> eop 0x559797213c20
-> arg 0: /root/pangolin/bin/inject
-> arg 1: 1
-> arg 2: 2 3
-> fake stack: 0xdcd4db70
+> set auxv[9] to 0x7efcd3000ab0
+> set auxv[7] to 0x7efcd3000000
+> eop 0x7efcd3213c20
+> fake stack: 0x7efcd2889de0
 > starting ...
-# oh hai from pid 3640632
+# oh hai from pid 4128237
 # arg 0: /root/pangolin/bin/inject
 # arg 1: 1
 # arg 2: 2 3
+# env: MANMAP=1
+# env: GS=0x0
+# env: FS=0x7efcd289eb80
 # :)
 # :)
 # :)
 # bye!
 ...........
 ```
-PS: run "./pangolin -c $(pwd)/inject -p $(pidof target) -e LD_DEBUG=all" for environment variable test.
