@@ -2,15 +2,19 @@
 #include <common/log.h>
 #include <common/utils/path.h>
 
+constexpr auto PREFIX = "lib";
+constexpr auto EXTENSION = "so";
+
 constexpr auto SHELLCODE_BEGIN = "shellcode_begin";
 constexpr auto SHELLCODE_ENTRY = "shellcode_start";
 constexpr auto SHELLCODE_END = "shellcode_end";
 
-bool CShellcode::load(const std::string &filename) {
+bool CShellcode::load(const std::string &shellcode) {
+    std::string filename = CStringHelper::format("%s%s.%s", PREFIX, shellcode.c_str(), EXTENSION);
     std::string path = CPath::join(CPath::getAPPDir(), filename);
 
     if (!mReader.load(path)) {
-        LOG_ERROR("open shellcode failed: %s", filename.c_str());
+        LOG_ERROR("open shellcode failed: %s", shellcode.c_str());
         return false;
     }
 

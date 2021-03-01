@@ -2,7 +2,7 @@
 #define PANGOLIN_ELF_LOADER_H
 
 #include "fake_stack.h"
-#include "args.h"
+#include "payload.h"
 #include <crt_syscall.h>
 #include <crt_log.h>
 #include <crt_asm.h>
@@ -16,8 +16,8 @@
 
 #define MOD_OFFSET_NEXT     0x10000
 
-#define ALIGN_PAGE_UP(x)    do { if((x) % PAGE_SIZE) (x) += (PAGE_SIZE - ((x) % PAGE_SIZE)); } while(0)
-#define ALIGN_PAGE_DOWN(x)  do { if((x) % PAGE_SIZE) (x) -= ((x) % PAGE_SIZE); } while(0)
+#define ALIGN_PAGE_UP(x)    if (x % PAGE_SIZE) x = (x + PAGE_SIZE) & ~(PAGE_SIZE - 1)
+#define ALIGN_PAGE_DOWN(x)  if (x % PAGE_SIZE) x &= ~(PAGE_SIZE - 1)
 
 int set_auxv(unsigned long * auxv, unsigned long at_type, unsigned long at_val) {
     int i = 0;
@@ -188,12 +188,12 @@ int elf_map(char *path, unsigned long base_address, unsigned long *auxv, unsigne
     return 0;
 }
 
-void elf_loader(struct CLoaderArgs* loader_args) {
-    LOG("target: %s arg: %d env: %d", loader_args->arg, loader_args->arg_count, loader_args->env_count);
+void elf_loader(struct CPayload* payload) {
+    LOG("target: %s", payload->arg);
 
     unsigned long eop = 0;
 
-    if (elf_map(loader_args->arg, loader_args->base_address, (unsigned long *)loader_args->auxv, &eop) < 0) {
+    if (elf_map(payload->arg, payload->base_address, (unsigned long *)payload->auxv, &eop) < 0) {
         LOG("map elf failed");
         __exit(-1);
     }
@@ -214,19 +214,19 @@ void elf_loader(struct CLoaderArgs* loader_args) {
     char *av[256] = {};
     char *env[256] = {fs_env, gs_env};
 
-    for (int i = 0; i < loader_args->arg_count; i++)
-        av[i] = i == 0 ? loader_args->arg : av[i-1] + strlen(av[i-1]) + 1;
+    for (int i = 0; i < payload->arg_count; i++)
+        av[i] = i == 0 ? payload->arg : av[i - 1] + strlen(av[i - 1]) + 1;
 
     char **env_custom = env + 2;
 
-    for (int i = 0; i < loader_args->env_count; i++)
-        env_custom[i] = i == 0 ? loader_args->env : env_custom[i-1] + strlen(env_custom[i-1]) + 1;
+    for (int i = 0; i < payload->env_count; i++)
+        env_custom[i] = i == 0 ? payload->env : env_custom[i - 1] + strlen(env_custom[i - 1]) + 1;
 
     unsigned char fake_stack[4096 * 16] = {};
     unsigned char *fake_stack_top = fake_stack + sizeof(fake_stack);
 
-    unsigned char *fake_stack_ptr = make_fake_stack(fake_stack_top, loader_args->arg_count,
-                                                    av, env, (unsigned long *)loader_args->auxv);
+    unsigned char *fake_stack_ptr = make_fake_stack(fake_stack_top, payload->arg_count,
+                                                    av, env, (unsigned long *)payload->auxv);
 
     LOG("fake stack: 0x%lx", fake_stack_ptr);
     LOG("starting ...");

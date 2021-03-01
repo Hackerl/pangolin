@@ -14,5 +14,5 @@ include(cmake/ELFIO.cmake)
 add_executable(target sample/target.cpp)
 add_executable(inject sample/inject.cpp)
 
-add_executable(pangolin main.cpp inject/pt_inject.h inject/pt_inject.cpp share/sh_args.h share/sh_args.cpp inject/shellcode.cpp inject/shellcode.h)
+add_executable(pangolin main.cpp inject/pt_inject.cpp inject/shellcode.cpp inject/payload_builder.cpp)
 target_link_libraries(pangolin elfio)
