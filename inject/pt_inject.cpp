@@ -67,10 +67,10 @@ bool CPTInject::detach() {
     return true;
 }
 
-bool CPTInject::runCode(const char *filename, void *base, void *arg, int &status) const {
+bool CPTInject::runCode(const char *name, void *base, void *arg, int &status) const {
     CShellcode shellcode;
 
-    if (!shellcode.load(filename)) {
+    if (!shellcode.load(name)) {
         LOG_ERROR("shellcode load failed");
         return false;
     }
@@ -157,10 +157,10 @@ bool CPTInject::runCode(const char *filename, void *base, void *arg, int &status
     return sig != SIGSEGV;
 }
 
-bool CPTInject::callCode(const char *filename, void *base, void *arg, void **result) const {
+bool CPTInject::callCode(const char *name, void *base, void *arg, void **result) const {
     CShellcode shellcode;
 
-    if (!shellcode.load(filename)) {
+    if (!shellcode.load(name)) {
         LOG_ERROR("shellcode load failed");
         return false;
     }

@@ -17,8 +17,8 @@ public:
     bool detach();
 
 public:
-    bool runCode(const char *filename, void *base, void *arg, int &status) const;
-    bool callCode(const char *filename, void *base, void *arg, void **result) const;
+    bool runCode(const char *name, void *base, void *arg, int &status) const;
+    bool callCode(const char *name, void *base, void *arg, void **result) const;
 
 private:
     bool searchExecZone(void **base) const;

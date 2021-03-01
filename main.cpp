@@ -7,8 +7,6 @@
 constexpr auto PANGOLIN_WORKSPACE_SIZE = 0x10000;
 
 int main(int argc, char ** argv) {
-    INIT_CONSOLE_LOG(INFO);
-
     cmdline::parser parse;
 
     parse.add<int>("pid", 'p', "pid", true, 0);
@@ -18,6 +16,8 @@ int main(int argc, char ** argv) {
     parse.add<std::string>("base", 'b', "base address", false, "");
 
     parse.parse_check(argc, argv);
+
+    INIT_CONSOLE_LOG(INFO);
 
     int pid = parse.get<int>("pid");
 
