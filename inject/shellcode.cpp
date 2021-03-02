@@ -1,6 +1,5 @@
 #include "shellcode.h"
 #include <common/log.h>
-#include <common/utils/path.h>
 
 constexpr auto PREFIX = "lib";
 constexpr auto EXTENSION = "so";

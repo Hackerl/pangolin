@@ -2,7 +2,6 @@
 #include "inject/payload_builder.h"
 #include <common/cmdline.h>
 #include <common/log.h>
-#include <common/utils/string_helper.h>
 
 constexpr auto PANGOLIN_WORKSPACE_SIZE = 0x10000;
 
