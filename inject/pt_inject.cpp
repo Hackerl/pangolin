@@ -357,7 +357,7 @@ bool CPTInject::searchExecZone(void **base) const {
 bool CPTInject::init() {
     std::string path = CPath::join("/proc", std::to_string(mPid), "task");
 
-    for (const auto& i: CFileWalk(path.c_str())) {
+    for (const auto& i: CFileWalker(path)) {
         int thread = 0;
 
         if (!CStringHelper::toNumber(i.filename, thread)) {
