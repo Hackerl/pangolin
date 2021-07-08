@@ -26,11 +26,11 @@ int set_auxv(unsigned long * auxv, unsigned long at_type, unsigned long at_val) 
         i += 2;
 
     if (!auxv[i]) {
-        LOG("set auxv failed");
+        LOG("set auxiliary vector failed");
         return -1;
     }
 
-    LOG("set auxv[%d] to 0x%lx", at_type, at_val);
+    LOG("set auxiliary vector [%d] to 0x%lx", at_type, at_val);
     auxv[i+1] = at_val;
 
     return 0;
@@ -99,7 +99,7 @@ int elf_map(char *path, unsigned long base_address, unsigned long *auxv, unsigne
         return -1;
     }
 
-    void *elf_buffer = _mmap(NULL, (size_t)file_size, PROT_READ, MAP_PRIVATE, fd, 0);
+    void *elf_buffer = _mmap(NULL, file_size, PROT_READ, MAP_PRIVATE, fd, 0);
 
     if ((unsigned long)elf_buffer < 0) {
         _close(fd);
@@ -171,7 +171,7 @@ int elf_map(char *path, unsigned long base_address, unsigned long *auxv, unsigne
     }
 
     if (auxv) {
-        LOG("setting auxv");
+        LOG("setting auxiliary vector");
 
         set_auxv(auxv, AT_PHDR, base_segment + elf_hdr->e_phoff);
         set_auxv(auxv, AT_PHENT, elf_hdr->e_phentsize);
@@ -189,11 +189,11 @@ int elf_map(char *path, unsigned long base_address, unsigned long *auxv, unsigne
 }
 
 void elf_loader(struct CPayload* payload) {
-    LOG("target: %s", payload->arg);
+    LOG("target: %s", payload->argument);
 
     unsigned long eop = 0;
 
-    if (elf_map(payload->arg, payload->base_address, (unsigned long *)payload->auxv, &eop) < 0) {
+    if (elf_map(payload->argument, payload->base_address, (unsigned long *)payload->auxiliary, &eop) < 0) {
         LOG("map elf failed");
         __exit(-1);
     }
@@ -215,18 +215,23 @@ void elf_loader(struct CPayload* payload) {
     char *env[256] = {fs_env, gs_env};
 
     for (int i = 0; i < payload->arg_count; i++)
-        av[i] = i == 0 ? payload->arg : av[i - 1] + strlen(av[i - 1]) + 1;
+        av[i] = i == 0 ? payload->argument : av[i - 1] + strlen(av[i - 1]) + 1;
 
     char **env_custom = env + 2;
 
     for (int i = 0; i < payload->env_count; i++)
-        env_custom[i] = i == 0 ? payload->env : env_custom[i - 1] + strlen(env_custom[i - 1]) + 1;
+        env_custom[i] = i == 0 ? payload->environ : env_custom[i - 1] + strlen(env_custom[i - 1]) + 1;
 
     unsigned char fake_stack[4096 * 16] = {};
     unsigned char *fake_stack_top = fake_stack + sizeof(fake_stack);
 
-    unsigned char *fake_stack_ptr = make_fake_stack(fake_stack_top, payload->arg_count,
-                                                    av, env, (unsigned long *)payload->auxv);
+    unsigned char *fake_stack_ptr = make_fake_stack(
+            fake_stack_top,
+            payload->arg_count,
+            av,
+            env,
+            (unsigned long *)payload->auxiliary
+            );
 
     LOG("fake stack: 0x%lx", fake_stack_ptr);
     LOG("starting ...");

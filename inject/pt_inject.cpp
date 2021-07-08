@@ -67,7 +67,7 @@ bool CPTInject::detach() {
     return true;
 }
 
-bool CPTInject::runCode(const char *name, void *base, void *arg, int &status) const {
+bool CPTInject::run(const char *name, void *base, void *arg, int &status) const {
     CShellcode shellcode;
 
     if (!shellcode.load(name)) {
@@ -157,7 +157,7 @@ bool CPTInject::runCode(const char *name, void *base, void *arg, int &status) co
     return sig != SIGSEGV;
 }
 
-bool CPTInject::callCode(const char *name, void *base, void *arg, void **result) const {
+bool CPTInject::call(const char *name, void *base, void *arg, void **result) const {
     CShellcode shellcode;
 
     if (!shellcode.load(name)) {

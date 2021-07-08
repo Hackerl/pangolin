@@ -2,12 +2,12 @@
 #define PANGOLIN_PAYLOAD_H
 
 struct CPayload {
-    int arg_count;
-    int env_count;
+    char argument[1024];
+    char environ[1024];
+    char auxiliary[1024];
+    unsigned long arg_count;
+    unsigned long env_count;
     unsigned long base_address;
-    char arg[1024];
-    char env[1024];
-    char auxv[1024];
 };
 
 #endif //PANGOLIN_PAYLOAD_H

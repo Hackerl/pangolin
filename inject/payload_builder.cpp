@@ -3,54 +3,54 @@
 #include <common/utils/shell.h>
 #include <common/utils/process.h>
 
-CPayloadBuilder::CPayloadBuilder(int pid, const std::string &command, const std::string &env, unsigned long base) {
+CPayloadBuilder::CPayloadBuilder(int pid, const std::string &commandline, const std::string &environs, unsigned long baseAddress) {
     mPID = pid;
-    mCommand = command;
-    mEnv = env;
-    mBase = base;
+    mCommandline = commandline;
+    mEnvirons = environs;
+    mBaseAddress = baseAddress;
 }
 
 bool CPayloadBuilder::build(CPayload &payload) {
-    std::list<std::string> args;
-    std::list<std::string> envs;
+    std::list<std::string> arguments;
+    std::list<std::string> environs;
 
-    if (!CShellAPI::expansion(mCommand, args) || !CShellAPI::expansion(mEnv, envs)) {
+    if (!CShellAPI::expansion(mCommandline, arguments) || !CShellAPI::expansion(mEnvirons, environs)) {
         LOG_ERROR("shell expansion failed");
         return false;
     }
 
-    payload.arg_count = args.size();
-    payload.env_count = envs.size();
+    payload.arg_count = arguments.size();
+    payload.env_count = environs.size();
 
-    char *arg = payload.arg;
-    char *env = payload.env;
+    char *arg = payload.argument;
+    char *env = payload.environ;
 
-    for (const auto& a: args) {
-        strcpy(arg, a.c_str());
-        arg += a.length() + 1;
+    for (const auto &i: arguments) {
+        strcpy(arg, i.c_str());
+        arg += i.length() + 1;
     }
 
-    for (const auto& e: envs) {
-        strcpy(env, e.c_str());
-        env += e.length() + 1;
+    for (const auto &i: environs) {
+        strcpy(env, i.c_str());
+        env += i.length() + 1;
     }
 
-    if (!getAuxiliaryVector(payload.auxv, sizeof(payload.auxv))) {
+    if (!getAuxiliaryVector(payload.auxiliary, sizeof(payload.auxiliary))) {
         LOG_ERROR("get auxiliary vector failed");
         return false;
     }
 
-    if (mBase != 0) {
-        payload.base_address = mBase;
+    if (mBaseAddress != 0) {
+        payload.base_address = mBaseAddress;
         return true;
     }
 
-    if (!getBaseAddress(mBase)) {
+    if (!getBaseAddress(mBaseAddress)) {
         LOG_ERROR("find base address failed");
         return false;
     }
 
-    payload.base_address = mBase;
+    payload.base_address = mBaseAddress;
 
     return true;
 }

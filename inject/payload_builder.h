@@ -6,7 +6,7 @@
 
 class CPayloadBuilder {
 public:
-    explicit CPayloadBuilder(int pid, const std::string &command, const std::string &env, unsigned long base);
+    explicit CPayloadBuilder(int pid, const std::string &commandline, const std::string &environs, unsigned long baseAddress);
 
 public:
     bool build(CPayload &payload);
@@ -17,11 +17,11 @@ private:
 
 private:
     int mPID;
-    unsigned long mBase;
+    unsigned long mBaseAddress;
 
 private:
-    std::string mCommand;
-    std::string mEnv;
+    std::string mCommandline;
+    std::string mEnvirons;
 };
 
 

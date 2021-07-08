@@ -75,11 +75,11 @@ bool CShellcode::load(const std::string &shellcode) {
     }
 
     auto data = (*sit)->get_data();
-    auto addr = (*sit)->get_address();
+    auto address = (*sit)->get_address();
 
-    mBegin = data + begin - addr;
-    mEntry = data + entry - addr;
-    mEnd = data + end - addr;
+    mBegin = data + begin - address;
+    mEntry = data + entry - address;
+    mEnd = data + end - address;
 
     return true;
 }

@@ -35,16 +35,16 @@
     }                                           \
 }
 
-static inline unsigned char *make_fake_stack(unsigned char *sp, int ac, char **av, char **env, unsigned long *auxv) {
+static inline unsigned char *make_fake_stack(unsigned char *sp, unsigned long ac, char **av, char **env, unsigned long *auxiliary_vector) {
     unsigned char *av_ptr[256] = {};
     unsigned char *env_ptr[256] = {};
 
-    int env_max = 0;
+    unsigned long env_max = 0;
 
     // align stack
     FSTACK_PUSH_STR(sp, "");
 
-    // copy original env
+    // copy original environ
     while (*env && env_max < 254) {
         FSTACK_PUSH_STR(sp, *env);
         env_ptr[env_max++] = sp;
@@ -56,23 +56,23 @@ static inline unsigned char *make_fake_stack(unsigned char *sp, int ac, char **a
     env_ptr[env_max++] = sp;
 
     // argv data
-    for (int i = 0; i < ac; i++) {
+    for (unsigned long i = 0; i < ac; i++) {
         FSTACK_PUSH_STR(sp, av[ac - i - 1]);
         av_ptr[i] = sp;
     }
 
     unsigned char *stack_argument_ptr = sp;
 
-    // auxv
-    FSTACK_PUSH_AUXV(sp, auxv);
+    // auxiliary vector
+    FSTACK_PUSH_AUXV(sp, auxiliary_vector);
 
-    // envp
+    // env ptr
     FSTACK_PUSH_LONG(sp, 0);
 
     for (int i = 0; i < env_max; i++)
         FSTACK_PUSH_LONG(sp, (unsigned long)env_ptr[i]);
 
-    // argp
+    // arg ptr
     FSTACK_PUSH_LONG(sp, 0);
 
     for (int i = 0; i < ac; i++)
