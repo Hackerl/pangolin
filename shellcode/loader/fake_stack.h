@@ -4,17 +4,19 @@
 #include <crt_std.h>
 #include <crt_log.h>
 
-#define FSTACK_PUSH_STR(sp, s)                  \
+#define FAKE_STACK_PUSH_STR(sp, s)              \
 {                                               \
     unsigned long l = strlen(s) + 1;            \
     unsigned long a = (unsigned long)sp - l;    \
+                                                \
     while((a % sizeof(unsigned long)) != 0)     \
         a -= 1;                                 \
+                                                \
     memcpy((void*)a, s, l);                     \
     sp = (void*)a;                              \
 }
 
-#define FSTACK_PUSH_LONG(sp, n)                 \
+#define FAKE_STACK_PUSH_LONG(sp, n)             \
 {                                               \
     unsigned long l = sizeof(unsigned long);    \
     unsigned long v = n;                        \
@@ -22,64 +24,65 @@
     memcpy(sp, &v, l);                          \
 }
 
-#define FSTACK_PUSH_AUXV(sp, auxv)              \
+#define FAKE_STACK_PUSH_AUXV(sp, auxv)          \
 {                                               \
-    unsigned long * a = auxv;                   \
-    FSTACK_PUSH_LONG(sp, 0);                    \
-    FSTACK_PUSH_LONG(sp, 0);                    \
-    while(*a)                                   \
-    {                                           \
-        FSTACK_PUSH_LONG(sp, a[1]);             \
-        FSTACK_PUSH_LONG(sp, a[0]);             \
+    unsigned long *a = auxv;                    \
+                                                \
+    FAKE_STACK_PUSH_LONG(sp, 0);                \
+    FAKE_STACK_PUSH_LONG(sp, 0);                \
+                                                \
+    while(*a) {                                 \
+        FAKE_STACK_PUSH_LONG(sp, a[1]);         \
+        FAKE_STACK_PUSH_LONG(sp, a[0]);         \
         a += 2;                                 \
     }                                           \
 }
 
-static inline unsigned char *make_fake_stack(unsigned char *sp, unsigned long ac, char **av, char **env, unsigned long *auxiliary_vector) {
+static inline unsigned char *make_fake_stack(unsigned char *sp, unsigned long argc, char **argv, char **env, unsigned long *auxiliary_vector) {
     unsigned char *av_ptr[256] = {};
     unsigned char *env_ptr[256] = {};
 
     unsigned long env_max = 0;
 
     // align stack
-    FSTACK_PUSH_STR(sp, "");
+    FAKE_STACK_PUSH_STR(sp, "")
 
     // copy original environ
     while (*env && env_max < 254) {
-        FSTACK_PUSH_STR(sp, *env);
+        FAKE_STACK_PUSH_STR(sp, *env)
         env_ptr[env_max++] = sp;
         env ++;
     }
 
-    // add to envdata
-    FSTACK_PUSH_STR(sp, "MANMAP=1");
+    // pangolin env
+    FAKE_STACK_PUSH_STR(sp, "PANGOLIN=1")
     env_ptr[env_max++] = sp;
 
     // argv data
-    for (unsigned long i = 0; i < ac; i++) {
-        FSTACK_PUSH_STR(sp, av[ac - i - 1]);
+    for (unsigned long i = 0; i < argc; i++) {
+        FAKE_STACK_PUSH_STR(sp, argv[argc - i - 1])
         av_ptr[i] = sp;
     }
 
     unsigned char *stack_argument_ptr = sp;
 
     // auxiliary vector
-    FSTACK_PUSH_AUXV(sp, auxiliary_vector);
+    FAKE_STACK_PUSH_AUXV(sp, auxiliary_vector)
 
     // env ptr
-    FSTACK_PUSH_LONG(sp, 0);
+    FAKE_STACK_PUSH_LONG(sp, 0)
 
     for (int i = 0; i < env_max; i++)
-        FSTACK_PUSH_LONG(sp, (unsigned long)env_ptr[i]);
+        FAKE_STACK_PUSH_LONG(sp, (unsigned long)env_ptr[i])
 
     // arg ptr
-    FSTACK_PUSH_LONG(sp, 0);
+    FAKE_STACK_PUSH_LONG(sp, 0)
 
-    for (int i = 0; i < ac; i++)
-        FSTACK_PUSH_LONG(sp, (unsigned long)av_ptr[i]);
+    for (int i = 0; i < argc; i++)
+        FAKE_STACK_PUSH_LONG(sp, (unsigned long)av_ptr[i])
 
     // argc
-    FSTACK_PUSH_LONG(sp, ac);
+    FAKE_STACK_PUSH_LONG(sp, argc)
 
     if ((unsigned long)sp % (2 * sizeof(long))) {
         LOG("adjust stack");
@@ -88,7 +91,6 @@ static inline unsigned char *make_fake_stack(unsigned char *sp, unsigned long ac
             *(i - sizeof(long)) = *i;
 
         memset(stack_argument_ptr - sizeof(long), 0, sizeof(long));
-
         sp -= sizeof(long);
     }
 

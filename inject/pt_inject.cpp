@@ -36,7 +36,7 @@ bool CPTInject::attach() {
         }
 
         if (WSTOPSIG(s) != SIGSTOP) {
-            LOG_ERROR("attach recv signal: %s", strsignal(WSTOPSIG(s)));
+            LOG_ERROR("attach receive signal: %s", strsignal(WSTOPSIG(s)));
             return false;
         }
     }
@@ -132,7 +132,7 @@ bool CPTInject::run(const char *name, void *base, void *arg, int &status) const 
         }
 
         if (sig != SIGTRAP) {
-            LOG_INFO("recv signal: %s", strsignal(sig));
+            LOG_INFO("receive signal: %s", strsignal(sig));
             continue;
         }
 
@@ -214,7 +214,7 @@ bool CPTInject::call(const char *name, void *base, void *arg, void **result) con
         if (sig == SIGTRAP || sig == SIGSEGV)
             break;
 
-        LOG_INFO("recv signal: %s", strsignal(sig));
+        LOG_INFO("receive signal: %s", strsignal(sig));
     }
 
     LOG_INFO("restore memory");

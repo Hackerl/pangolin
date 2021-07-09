@@ -5,6 +5,10 @@
 
 constexpr auto PANGOLIN_WORKSPACE_SIZE = 0x10000;
 
+constexpr auto SPREAD = "spread";
+constexpr auto LOADER = "loader";
+constexpr auto SHRINK = "shrink";
+
 int main(int argc, char ** argv) {
     cmdline::parser parse;
 
@@ -55,7 +59,7 @@ int main(int argc, char ** argv) {
 
     void *result = nullptr;
 
-    if (!ptInject.call("spread", nullptr, (void *) PANGOLIN_WORKSPACE_SIZE, &result)) {
+    if (!ptInject.call(SPREAD, nullptr, (void *) PANGOLIN_WORKSPACE_SIZE, &result)) {
         LOG_ERROR("call spread shellcode failed");
         return -1;
     }
@@ -67,14 +71,14 @@ int main(int argc, char ** argv) {
     int status = 0;
     unsigned long injectBase = ((unsigned long)result + PAGE_SIZE) & ~(PAGE_SIZE - 1);
 
-    if (!ptInject.run("loader", (void *) injectBase, result, status)) {
+    if (!ptInject.run(LOADER, (void *) injectBase, result, status)) {
         LOG_ERROR("run loader shellcode failed");
         return -1;
     }
 
     LOG_INFO("free workspace: %p", result);
 
-    if (!ptInject.call("shrink", nullptr, result, nullptr)) {
+    if (!ptInject.call(SHRINK, nullptr, result, nullptr)) {
         LOG_ERROR("call shrink shellcode failed");
         return -1;
     }

@@ -86,7 +86,7 @@ bool CPayloadBuilder::getAuxiliaryVector(char *buffer, unsigned long length) con
         return false;
     }
 
-    ifs.read(buffer, length);
+    ifs.read(buffer, (std::streamsize)length);
 
     return true;
 }

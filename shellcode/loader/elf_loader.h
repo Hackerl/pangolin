@@ -45,7 +45,7 @@ int load_segment(unsigned char *elf, Elf64_Phdr *p_hdr, unsigned long base_offse
 
     unsigned long address = (unsigned long)_mmap((void*)(seg_address - seg_offset), (long)(seg_length + seg_offset), PROT_READ | PROT_WRITE, MAP_FIXED | MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
 
-    LOG("load segment addr 0x%lx len 0x%lx => 0x%lx", seg_address, seg_length, address);
+    LOG("load segment address 0x%lx len 0x%lx => 0x%lx", seg_address, seg_length, address);
 
     if (address != seg_address - seg_offset)
         return -1;
@@ -148,7 +148,7 @@ int elf_map(char *path, unsigned long base_address, unsigned long *auxv, unsigne
     base_next += MOD_OFFSET_NEXT;
     ALIGN_PAGE_UP(base_next);
 
-    LOG("max addr 0x%lx", base_address + base_next);
+    LOG("max address 0x%lx", base_address + base_next);
 
     unsigned long eop_ldr = 0;
     unsigned long base_interpreter = 0;
@@ -211,11 +211,11 @@ void elf_loader(struct CPayload* payload) {
     snprintf(fs_env, sizeof(fs_env), "FS=0x%lx", fs);
     snprintf(gs_env, sizeof(gs_env), "GS=0x%lx", gs);
 
-    char *av[256] = {};
+    char *argv[256] = {};
     char *env[256] = {fs_env, gs_env};
 
     for (int i = 0; i < payload->arg_count; i++)
-        av[i] = i == 0 ? payload->argument : av[i - 1] + strlen(av[i - 1]) + 1;
+        argv[i] = i == 0 ? payload->argument : argv[i - 1] + strlen(argv[i - 1]) + 1;
 
     char **env_custom = env + 2;
 
@@ -228,7 +228,7 @@ void elf_loader(struct CPayload* payload) {
     unsigned char *fake_stack_ptr = make_fake_stack(
             fake_stack_top,
             payload->arg_count,
-            av,
+            argv,
             env,
             (unsigned long *)payload->auxiliary
             );
