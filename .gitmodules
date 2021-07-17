@@ -1,9 +1,9 @@
 [submodule "include/common"]
 	path = include/common
 	url = https://github.com/Hackerl/cpp-common
-[submodule "shellcode/crt"]
-	path = shellcode/crt
-	url = https://github.com/Hackerl/crt
 [submodule "cmake"]
 	path = cmake
 	url = https://github.com/Hackerl/cmake-3rd
+[submodule "shellcode/c-runtime"]
+	path = shellcode/c-runtime
+	url = https://github.com/Hackerl/c-runtime

@@ -1,23 +1,18 @@
-#include "elf_loader.h"
 #include "loader.h"
-#include <crt_log.h>
-#include <crt_asm.h>
+#include <z_log.h>
 
-#define STACK_SIZE 0x20000
+void __attribute__ ((visibility ("default"))) shellcode_begin() {
 
-void __attribute__ ((visibility ("default"))) shellcode_begin() {}
+}
 
 void loader_main(void *ptr) {
-    LOG("elf loader start");
-
-    char *stack = malloc(STACK_SIZE);
-    char *stack_top = stack + STACK_SIZE;
-
-    FIX_SP_JMP(stack_top, elf_loader, ptr);
+    LOG("elf loader");
 }
 
 void __attribute__ ((visibility ("default"))) shellcode_start() {
-    INJ_ENTRY(loader_main);
+    asm volatile("nop; nop; call loader_main; int3;");
 }
 
-void __attribute__ ((visibility ("default"))) shellcode_end() {}
+void __attribute__ ((visibility ("default"))) shellcode_end() {
+
+}
