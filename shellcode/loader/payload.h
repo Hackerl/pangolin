@@ -7,6 +7,7 @@
 #define PAYLOAD_MAX_ENV 256
 
 struct CPayload {
+    int daemon;
     char argv[1024];
     char env[1024];
 };

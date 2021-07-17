@@ -67,7 +67,7 @@ bool CPTInject::detach() {
     return true;
 }
 
-bool CPTInject::run(const char *name, void *base, void *arg, int &status) const {
+bool CPTInject::run(const char *name, void *base, void *stack, void *arg, int &status) const {
     CShellcode shellcode;
 
     if (!shellcode.load(name)) {
@@ -100,6 +100,7 @@ bool CPTInject::run(const char *name, void *base, void *arg, int &status) const 
 
     modifyRegs.rdi = (unsigned long long)arg;
     modifyRegs.rip = (unsigned long long)memoryBase + 2 + offset;
+    modifyRegs.rsp = stack ? (unsigned long long)stack : mRegister.rsp;
 
     if (!setRegister(modifyRegs))
         return false;
@@ -157,7 +158,7 @@ bool CPTInject::run(const char *name, void *base, void *arg, int &status) const 
     return sig != SIGSEGV;
 }
 
-bool CPTInject::call(const char *name, void *base, void *arg, void **result) const {
+bool CPTInject::call(const char *name, void *base, void *stack, void *arg, void **result) const {
     CShellcode shellcode;
 
     if (!shellcode.load(name)) {
@@ -190,6 +191,7 @@ bool CPTInject::call(const char *name, void *base, void *arg, void **result) con
 
     modifyRegs.rdi = (unsigned long long)arg;
     modifyRegs.rip = (unsigned long long)memoryBase + 2 + offset;
+    modifyRegs.rsp = stack ? (unsigned long long)stack : mRegister.rsp;
 
     if (!setRegister(modifyRegs))
         return false;

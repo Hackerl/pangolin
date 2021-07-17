@@ -1,8 +1,12 @@
 #include "loader.h"
 #include "payload.h"
+#include "elf_loader.h"
 #include <z_log.h>
+#include <z_memory.h>
 #include <z_syscall.h>
 #include <z_std.h>
+
+#define STACK_SIZE 0x20000
 
 void __attribute__ ((visibility ("default"))) shellcode_begin() {
 
@@ -11,44 +15,30 @@ void __attribute__ ((visibility ("default"))) shellcode_begin() {
 void loader_main(void *ptr) {
     struct CPayload *payload = (struct CPayload *)ptr;
 
-    int argc = 0;
+    if (!payload->daemon) {
+        int status = elf_loader(payload);
+        z_exit(status);
+    }
 
-    char *argv[PAYLOAD_MAX_ARG] = {};
-    char *env[PAYLOAD_MAX_ENV] = {};
+    char *buffer = z_malloc(STACK_SIZE);
 
-    if (!z_strlen(payload->argv)) {
-        LOG("empty argv");
+    if (!buffer) {
+        LOG("malloc failed");
         z_exit(-1);
     }
 
-    argv[argc++] = payload->argv;
+    z_memcpy(buffer, payload, sizeof(struct CPayload));
 
-    for (char *i = payload->argv; *i && argc < PAYLOAD_MAX_ARG; i++) {
-        if (*i == *PAYLOAD_DELIMITER) {
-            *i = 0;
-            argv[argc++] = i + 1;
-        }
-    }
-
-    if (z_strlen(payload->env)) {
-        int count = 0;
-        env[count++] = payload->env;
-
-        for (char *i = payload->env; *i && count < PAYLOAD_MAX_ENV; i++) {
-            if (*i == *PAYLOAD_DELIMITER) {
-                *i = 0;
-                env[count++] = i + 1;
-            }
-        }
-    }
-
-    for(int i = 0; i < argc; i++)
-        LOG("arg[%d] %s", i, argv[i]);
-
-    for(char **e = env; *e != NULL; e++)
-        LOG("env %s", *e);
-
-    z_exit(0);
+    asm volatile(
+            "mov %0, %%rsp;"
+            "mov %1, %%rdi;"
+            "call *%2;"
+            "mov %%rax, %%rdi;"
+            "call z_exit;"
+            ::
+            "r"(buffer + STACK_SIZE),
+            "r"(buffer),
+            "a"(elf_loader));
 }
 
 void __attribute__ ((visibility ("default"))) shellcode_start() {

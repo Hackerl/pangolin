@@ -13,9 +13,10 @@ constexpr auto SHRINK = "shrink";
 int main(int argc, char ** argv) {
     cmdline::parser parse;
 
+    parse.add("daemon", '\0', "daemon mode");
     parse.add<int>("pid", 'p', "pid", true, 0);
 
-    parse.add<std::string>("commandline", 'c', "inject commandline", true, "");
+    parse.add<std::string>("commandline", 'c', "injected commandline", true, "");
     parse.add<std::string>("env", 'e', "environment variable", false, "");
 
     parse.parse_check(argc, argv);
@@ -43,7 +44,7 @@ int main(int argc, char ** argv) {
 
     void *result = nullptr;
 
-    if (!ptInject.call(SPREAD, nullptr, (void *) PANGOLIN_WORKSPACE_SIZE, &result)) {
+    if (!ptInject.call(SPREAD, nullptr, nullptr, (void *)PANGOLIN_WORKSPACE_SIZE, &result)) {
         LOG_ERROR("call spread shellcode failed");
         return -1;
     }
@@ -68,22 +69,26 @@ int main(int argc, char ** argv) {
 
     CPayload payload = {};
 
+    payload.daemon = parse.exist("daemon");
+
     memcpy(payload.argv, combinedArg.data(), combinedArg.size());
     memcpy(payload.env, combinedEnv.data(), combinedEnv.size());
 
     ptInject.writeMemory(result, &payload, sizeof(payload));
 
     int status = 0;
-    unsigned long base = ((unsigned long)result + sizeof(payload) + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1);
 
-    if (!ptInject.run(LOADER, (void *) base, result, status)) {
+    unsigned long base = ((unsigned long)result + sizeof(payload) + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1);
+    unsigned long stack = (unsigned long)result + PANGOLIN_WORKSPACE_SIZE;
+
+    if (!ptInject.run(LOADER, (void *)base, (void *)stack, result, status)) {
         LOG_ERROR("run loader shellcode failed");
         return -1;
     }
 
     LOG_INFO("free workspace: %p", result);
 
-    if (!ptInject.call(SHRINK, nullptr, result, nullptr)) {
+    if (!ptInject.call(SHRINK, nullptr, nullptr, result, nullptr)) {
         LOG_ERROR("call shrink shellcode failed");
         return -1;
     }
