@@ -18,7 +18,7 @@ unsigned long load_segments(void *buffer) {
     Elf64_Ehdr *ehdr = buffer;
     Elf64_Phdr *phdr = buffer + ehdr->e_phoff;
 
-    unsigned long minVA = 0;
+    unsigned long minVA = -1;
     unsigned long maxVA = 0;
 
     for (Elf64_Phdr *i = phdr; i < &phdr[ehdr->e_phnum]; i++) {
@@ -46,7 +46,7 @@ unsigned long load_segments(void *buffer) {
             0);
 
     if (base == MAP_FAILED) {
-        LOG("mmap failed: %s", z_errno);
+        LOG("mmap failed: %d", z_errno);
         return -1;
     }
 
