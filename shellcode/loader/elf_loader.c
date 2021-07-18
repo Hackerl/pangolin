@@ -11,6 +11,8 @@
 #define PROGRAM         0
 #define INTERPRETER     1
 
+#define AV_PATH         "/proc/self/auxv"
+
 #define ROUND_PG(x)     (((x) + (PAGE_SIZE - 1)) & ~(PAGE_SIZE - 1))
 #define TRUNC_PG(x)     ((x) & ~(PAGE_SIZE - 1))
 
@@ -239,16 +241,16 @@ int elf_loader(struct CPayload *payload) {
         return -1;
     }
 
-    int fd = z_open("/proc/self/auxv", O_RDONLY, 0);
+    int fd = z_open(AV_PATH, O_RDONLY, 0);
 
     if (fd < 0) {
         LOG("open failed: %d", z_errno);
         return -1;
     }
 
-    char auxiliary[1024] = {};
+    char av[1024] = {};
 
-    ssize_t length = z_read(fd, auxiliary, sizeof(auxiliary));
+    ssize_t length = z_read(fd, av, sizeof(av));
 
     if (length == -1) {
         z_close(fd);
@@ -257,30 +259,30 @@ int elf_loader(struct CPayload *payload) {
 
     z_close(fd);
 
-    for (Elf64_auxv_t *av = (Elf64_auxv_t *)auxiliary; av->a_type != AT_NULL; av++) {
-        switch (av->a_type) {
+    for (Elf64_auxv_t *i = (Elf64_auxv_t *)av; i->a_type != AT_NULL; i++) {
+        switch (i->a_type) {
             case AT_PHDR:
-                av->a_un.a_val = context[PROGRAM].header;
+                i->a_un.a_val = context[PROGRAM].header;
                 break;
 
             case AT_PHENT:
-                av->a_un.a_val = context[PROGRAM].header_size;
+                i->a_un.a_val = context[PROGRAM].header_size;
                 break;
 
             case AT_PHNUM:
-                av->a_un.a_val = context[PROGRAM].header_num;
+                i->a_un.a_val = context[PROGRAM].header_num;
                 break;
 
             case AT_BASE:
-                av->a_un.a_val = context[INTERPRETER].base ? context[INTERPRETER].base : 0;
+                i->a_un.a_val = context[INTERPRETER].base ? context[INTERPRETER].base : 0;
                 break;
 
             case AT_ENTRY:
-                av->a_un.a_val = context[PROGRAM].entry;
+                i->a_un.a_val = context[PROGRAM].entry;
                 break;
 
             case AT_EXECFN:
-                av->a_un.a_val = (unsigned long)path;
+                i->a_un.a_val = (unsigned long)path;
                 break;
         }
     }
@@ -288,7 +290,7 @@ int elf_loader(struct CPayload *payload) {
     unsigned char buffer[4096] = {};
     unsigned long entry = context[INTERPRETER].entry ? context[INTERPRETER].entry : context[PROGRAM].entry;
 
-    unsigned char *stack = (unsigned char *)(((unsigned long)buffer + STACK_ALIGN -1) & ~(STACK_ALIGN -1));
+    unsigned char *stack = (unsigned char *)(((unsigned long)buffer + STACK_ALIGN - 1) & ~(STACK_ALIGN - 1));
     unsigned long *p = (unsigned long *)stack;
 
     *(int *)p++ = argc;
@@ -303,7 +305,7 @@ int elf_loader(struct CPayload *payload) {
 
     *(char **)p++ = NULL;
 
-    z_memcpy(p, auxiliary, length);
+    z_memcpy(p, av, length);
 
     asm volatile("mov %0, %%rsp; xor %%rdx, %%rdx; jmp *%1;" :: "r"(stack), "a"(entry));
 
