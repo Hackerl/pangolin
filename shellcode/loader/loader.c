@@ -20,14 +20,14 @@ void loader_main(void *ptr) {
         z_exit(status);
     }
 
-    char *buffer = z_malloc(STACK_SIZE);
+    char *stack = z_malloc(STACK_SIZE);
 
-    if (!buffer) {
+    if (!stack) {
         LOG("malloc failed");
         z_exit(-1);
     }
 
-    z_memcpy(buffer, payload, sizeof(struct CPayload));
+    z_memcpy(stack, payload, sizeof(struct CPayload));
 
     asm volatile(
             "mov %0, %%rsp;"
@@ -36,8 +36,8 @@ void loader_main(void *ptr) {
             "mov %%rax, %%rdi;"
             "call z_exit;"
             ::
-            "r"(buffer + STACK_SIZE),
-            "r"(buffer),
+            "r"(stack + STACK_SIZE),
+            "r"(stack),
             "a"(elf_loader));
 }
 
