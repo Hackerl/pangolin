@@ -8,11 +8,11 @@
 
 #define STACK_ALIGN     16
 
-#define PROGRAM		    0
-#define INTERPRETER	    1
+#define PROGRAM         0
+#define INTERPRETER     1
 
-#define ROUND_PG(x)	(((x) + (PAGE_SIZE - 1)) & ~(PAGE_SIZE - 1))
-#define TRUNC_PG(x)	((x) & ~(PAGE_SIZE - 1))
+#define ROUND_PG(x)     (((x) + (PAGE_SIZE - 1)) & ~(PAGE_SIZE - 1))
+#define TRUNC_PG(x)     ((x) & ~(PAGE_SIZE - 1))
 
 unsigned long load_segments(void *buffer) {
     Elf64_Ehdr *ehdr = buffer;
