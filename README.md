@@ -63,7 +63,7 @@
 <!-- ABOUT THE PROJECT -->
 ## About The Project
 
-Pangolin is a program that allows to inject an ELF file into a remote process, both static & dynamically linked programs can be targetted.
+Pangolin is a program that allows to inject an ELF file into a remote process, both static & dynamically linked programs can be targeted.
 
 ### Built With
 
@@ -78,7 +78,7 @@ Pangolin is a program that allows to inject an ELF file into a remote process, b
 
 ### Prerequisites
 
-* cmake
+* CMake
   ```sh
   curl https://github.com/Kitware/CMake/releases/download/v3.21.0/cmake-3.21.0-linux-x86_64.sh | sh
   ```
@@ -128,6 +128,7 @@ Inject target:
 ```
 
 If you want to make some threads reside in remote process, please specify daemon mode, pangolin will allocate a persistent memory as stack. In addition, after daemon thread created, call ```exit``` syscall in main thread to end injection.
+
 
 
 <!-- ROADMAP -->
