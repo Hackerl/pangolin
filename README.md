@@ -170,7 +170,9 @@ Project Link: [https://github.com/Hackerl/pangolin](https://github.com/Hackerl/p
 <!-- ACKNOWLEDGEMENTS -->
 ## Acknowledgements
 * [mandibule](https://github.com/ixty/mandibule)
-
+* [elf](https://github.com/MikhailProg/elf)
+* [ELFIO](https://github.com/serge1/ELFIO)
+* [printf](https://github.com/mpaland/printf)
 
 
 
