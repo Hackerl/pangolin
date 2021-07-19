@@ -44,7 +44,7 @@ bool CShellcode::load(const std::string &shellcode) {
         ELFIO::Elf_Half section = 0;
         unsigned char other = 0;
 
-        if (!symbols.get_symbol(i, name, value, size, bind, type, section,other)) {
+        if (!symbols.get_symbol(i, name, value, size, bind, type, section, other)) {
             LOG_ERROR("get symbol %lu failed", i);
             return false;
         }

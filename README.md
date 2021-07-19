@@ -111,12 +111,23 @@ Pangolin is a program that allows to inject an ELF file into a remote process, b
 usage: ./pangolin --pid=int --commandline=string [options] ...
 options:
       --daemon         daemon mode
-  -p, --pid            pid (int)
-  -c, --commandline    injected commandline (string)
+  -p, --pid            process id (int)
+  -c, --commandline    commandline executed in process (string)
   -e, --env            environment variable (string [=])
   -?, --help           print this message
 ```
-If you want make some threads reside in remote process, please specify daemon mode, pangolin will allocate a persistent memory as stack. In addition, after daemon thread created, call ```exit``` syscall in main thread to end injection.
+
+Start target:
+```sh
+./target
+```
+
+Inject target:
+```sh
+./pangolin -c "$(pwd)/inject 1 '2 3'" -e "PANGOLIN=1" -p $(pidof target)
+```
+
+If you want to make some threads reside in remote process, please specify daemon mode, pangolin will allocate a persistent memory as stack. In addition, after daemon thread created, call ```exit``` syscall in main thread to end injection.
 
 
 <!-- ROADMAP -->

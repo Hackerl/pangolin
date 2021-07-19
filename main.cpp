@@ -14,9 +14,9 @@ int main(int argc, char ** argv) {
     cmdline::parser parse;
 
     parse.add("daemon", '\0', "daemon mode");
-    parse.add<int>("pid", 'p', "pid", true, 0);
+    parse.add<int>("pid", 'p', "process id", true, 0);
 
-    parse.add<std::string>("commandline", 'c', "injected commandline", true, "");
+    parse.add<std::string>("commandline", 'c', "commandline executed in process", true, "");
     parse.add<std::string>("env", 'e', "environment variable", false, "");
 
     parse.parse_check(argc, argv);
