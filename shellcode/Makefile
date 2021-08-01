@@ -4,7 +4,7 @@ CFLAGS 	+= -I c-runtime
 CFLAGS  += -shared -fvisibility=hidden
 CFLAGS  += -Os -fdata-sections -ffunction-sections
 CFLAGS 	+= -fno-common -fno-stack-protector -fomit-frame-pointer -fno-exceptions -fno-asynchronous-unwind-tables -fno-unwind-tables
-LDFLAGS += -T linker.ld -Wl,--gc-sections
+LDFLAGS += -T linker.ld -Wl,--gc-sections -Wl,--no-undefined
 PORTABLE = -fPIC -fno-builtin
 
 MACHINE	= $(shell uname -m)
