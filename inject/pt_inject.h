@@ -4,6 +4,12 @@
 #include <list>
 #include <sys/user.h>
 
+#ifdef __arm__
+typedef user_regs CRegister;
+#else
+typedef user_regs_struct CRegister;
+#endif
+
 class CPTInject {
 public:
     explicit CPTInject(int pid);
@@ -24,8 +30,8 @@ private:
     bool searchExecZone(void **base) const;
 
 public:
-    bool getRegister(user_regs_struct& regs) const;
-    bool setRegister(user_regs_struct regs) const;
+    bool getRegister(CRegister& regs) const;
+    bool setRegister(CRegister regs) const;
 
 public:
     bool readMemory(void *address, void *buffer, unsigned long length) const;
@@ -34,11 +40,13 @@ public:
 private:
     bool cancelSyscall() const;
 
-public:
+private:
     int mPid;
     bool mAttached;
     std::list<int> mThreads;
-    user_regs_struct mRegister{};
+
+private:
+    CRegister mRegister{};
 };
 
 

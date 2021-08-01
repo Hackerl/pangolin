@@ -9,9 +9,12 @@ public:
     bool load(const std::string& shellcode);
 
 public:
-    const char *mBegin;
-    const char *mEntry;
-    const char *mEnd;
+    const char *mBuffer;
+
+public:
+    unsigned long mAlign;
+    unsigned long mEntry;
+    unsigned long mLength;
 
 private:
     ELFIO::elfio mReader;

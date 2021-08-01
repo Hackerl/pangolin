@@ -3,13 +3,55 @@
 #include <sys/ptrace.h>
 #include <sys/uio.h>
 #include <elf.h>
-#include <sys/reg.h>
 #include <memory>
 #include <sys/wait.h>
 #include <syscall.h>
 #include <common/log.h>
 #include <common/utils/process.h>
 #include <common/utils/file_walk.h>
+
+#ifdef __i386__
+
+#define REG_PC              eip
+#define REG_RET             eax
+#define REG_STACK           esp
+#define PC_OFFSET           2
+#define REG_SYSCALL         orig_eax
+#define REG_SYSCALL_ARG     ebx
+
+#elif __x86_64__
+
+#define REG_PC              rip
+#define REG_ARG             rdi
+#define REG_RET             rax
+#define REG_STACK           rsp
+#define PC_OFFSET           2
+#define REG_SYSCALL         orig_rax
+#define REG_SYSCALL_ARG     rdi
+
+#elif __arm__
+
+#define REG_PC              uregs[15]
+#define REG_ARG             uregs[0]
+#define REG_RET             uregs[0]
+#define REG_STACK           uregs[13]
+#define PC_OFFSET           4
+#define REG_SYSCALL         uregs[7]
+#define REG_SYSCALL_ARG     uregs[0]
+
+#elif __aarch64__
+
+#define REG_PC              pc
+#define REG_ARG             regs[0]
+#define REG_RET             regs[0]
+#define REG_STACK           sp
+#define PC_OFFSET           4
+#define REG_SYSCALL         regs[8]
+#define REG_SYSCALL_ARG     regs[0]
+
+#else
+#error "unknown arch"
+#endif
 
 CPTInject::CPTInject(int pid) {
     mPid = pid;
@@ -75,11 +117,11 @@ bool CPTInject::run(const char *name, void *base, void *stack, void *arg, int &s
         return false;
     }
 
-    unsigned long offset = shellcode.mEntry - shellcode.mBegin;
-    unsigned long length = shellcode.mEnd - shellcode.mBegin;
+    unsigned long offset = shellcode.mAlign + shellcode.mEntry;
+    unsigned long length = shellcode.mAlign + shellcode.mLength;
 
     void *memoryBase = base;
-    std::unique_ptr<unsigned char> memoryBackup(new unsigned char[length + sizeof(long)]());
+    std::unique_ptr<unsigned char> memoryBackup(new unsigned char[length]());
 
     if (!memoryBase && !searchExecZone(&memoryBase)) {
         LOG_ERROR("search execute zone failed");
@@ -93,14 +135,22 @@ bool CPTInject::run(const char *name, void *base, void *stack, void *arg, int &s
 
     LOG_INFO("inject code at: %p entry: 0x%lx size: 0x%lx", memoryBase, offset, length);
 
-    if (!writeMemory(memoryBase, (void *)shellcode.mBegin, length))
+    if (!writeMemory((char *)memoryBase + shellcode.mAlign, (void *)shellcode.mBuffer, shellcode.mLength))
         return false;
 
-    user_regs_struct modifyRegs = mRegister;
+    CRegister modifyRegs = mRegister;
 
-    modifyRegs.rdi = (unsigned long long)arg;
-    modifyRegs.rip = (unsigned long long)memoryBase + 2 + offset;
-    modifyRegs.rsp = stack ? (unsigned long long)stack : mRegister.rsp;
+    modifyRegs.REG_PC = (unsigned long long)memoryBase + PC_OFFSET + offset;
+    modifyRegs.REG_STACK = stack ? (unsigned long long)stack : mRegister.REG_STACK;
+
+#ifdef __i386__
+    if (!writeMemory(modifyRegs.REG_STACK - sizeof(arg), &arg, sizeof(arg)))
+        return false;
+
+    modifyRegs.REG_STACK -= sizeof(arg);
+#else
+    modifyRegs.REG_ARG = (unsigned long long)arg;
+#endif
 
     if (!setRegister(modifyRegs))
         return false;
@@ -120,7 +170,7 @@ bool CPTInject::run(const char *name, void *base, void *stack, void *arg, int &s
             return false;
         }
 
-        user_regs_struct currentRegs = {};
+        CRegister currentRegs = {};
 
         if (!getRegister(currentRegs))
             return false;
@@ -128,7 +178,7 @@ bool CPTInject::run(const char *name, void *base, void *stack, void *arg, int &s
         sig = WSTOPSIG(s);
 
         if (sig == SIGSEGV) {
-            LOG_ERROR("segmentation fault: 0x%llx", currentRegs.rip);
+            LOG_ERROR("segmentation fault: 0x%llx", currentRegs.REG_PC);
             break;
         }
 
@@ -139,14 +189,19 @@ bool CPTInject::run(const char *name, void *base, void *stack, void *arg, int &s
 
         sig = 0;
 
-        if (currentRegs.orig_rax == -1) {
+        if (currentRegs.REG_SYSCALL == -1) {
             LOG_INFO("exit status: %d", status);
             break;
         }
 
-        if (currentRegs.orig_rax == SYS_exit || currentRegs.orig_rax == SYS_exit_group) {
-            status = (int)currentRegs.rdi;
+        if (currentRegs.REG_SYSCALL == SYS_exit || currentRegs.REG_SYSCALL == SYS_exit_group) {
+            status = (int)currentRegs.REG_SYSCALL_ARG;
             cancelSyscall();
+
+#ifdef __aarch64__
+            LOG_INFO("exit status: %d", status);
+            break;
+#endif
         }
     }
 
@@ -166,11 +221,11 @@ bool CPTInject::call(const char *name, void *base, void *stack, void *arg, void 
         return false;
     }
 
-    unsigned long offset = shellcode.mEntry - shellcode.mBegin;
-    unsigned long length = shellcode.mEnd - shellcode.mBegin;
+    unsigned long offset = shellcode.mAlign + shellcode.mEntry;
+    unsigned long length = shellcode.mAlign + shellcode.mLength;
 
     void *memoryBase = base;
-    std::unique_ptr<unsigned char> memoryBackup(new unsigned char[length + sizeof(long)]());
+    std::unique_ptr<unsigned char> memoryBackup(new unsigned char[length]());
 
     if (!memoryBase && !searchExecZone(&memoryBase)) {
         LOG_ERROR("search execute zone failed");
@@ -184,14 +239,22 @@ bool CPTInject::call(const char *name, void *base, void *stack, void *arg, void 
 
     LOG_INFO("inject code at: %p entry: 0x%lx size: 0x%lx", memoryBase, offset, length);
 
-    if (!writeMemory(memoryBase, (void *)shellcode.mBegin, length))
+    if (!writeMemory((char *)memoryBase + shellcode.mAlign, (void *)shellcode.mBuffer, shellcode.mLength))
         return false;
 
-    user_regs_struct modifyRegs = mRegister;
+    CRegister modifyRegs = mRegister;
 
-    modifyRegs.rdi = (unsigned long long)arg;
-    modifyRegs.rip = (unsigned long long)memoryBase + 2 + offset;
-    modifyRegs.rsp = stack ? (unsigned long long)stack : mRegister.rsp;
+    modifyRegs.REG_PC = (unsigned long long)memoryBase + PC_OFFSET + offset;
+    modifyRegs.REG_STACK = stack ? (unsigned long long)stack : mRegister.REG_STACK;
+
+#ifdef __i386__
+    if (!writeMemory(modifyRegs.REG_STACK - sizeof(arg), &arg, sizeof(arg)))
+        return false;
+
+    modifyRegs.REG_STACK -= sizeof(arg);
+#else
+    modifyRegs.REG_ARG = (unsigned long long)arg;
+#endif
 
     if (!setRegister(modifyRegs))
         return false;
@@ -224,27 +287,27 @@ bool CPTInject::call(const char *name, void *base, void *stack, void *arg, void 
     if (!writeMemory(memoryBase, memoryBackup.get(), length))
         return false;
 
-    user_regs_struct currentRegs = {};
+    CRegister currentRegs = {};
 
     if (!getRegister(currentRegs))
         return false;
 
     if (sig == SIGSEGV) {
-        LOG_ERROR("segmentation fault: 0x%llx", currentRegs.rip);
+        LOG_ERROR("segmentation fault: 0x%llx", currentRegs.REG_PC);
         return false;
     }
 
     if (result)
-        *result = (void *)currentRegs.rax;
+        *result = (void *)currentRegs.REG_RET;
 
     return true;
 }
 
-bool CPTInject::getRegister(user_regs_struct &regs) const {
+bool CPTInject::getRegister(CRegister &regs) const {
     iovec io = {};
 
     io.iov_base = &regs;
-    io.iov_len = sizeof(user_regs_struct);
+    io.iov_len = sizeof(CRegister);
 
     if (ptrace(PTRACE_GETREGSET, mPid, (void*)NT_PRSTATUS, (void*)&io) < 0) {
         LOG_ERROR("get register failed: %s", strerror(errno));
@@ -254,11 +317,11 @@ bool CPTInject::getRegister(user_regs_struct &regs) const {
     return true;
 }
 
-bool CPTInject::setRegister(user_regs_struct regs) const {
+bool CPTInject::setRegister(CRegister regs) const {
     iovec io = {};
 
     io.iov_base = &regs;
-    io.iov_len = sizeof(user_regs_struct);
+    io.iov_len = sizeof(CRegister);
 
     if (ptrace(PTRACE_SETREGSET, mPid, (void*)NT_PRSTATUS, (void*)&io) < 0) {
         LOG_ERROR("set register failed");
@@ -270,7 +333,7 @@ bool CPTInject::setRegister(user_regs_struct regs) const {
 
 bool CPTInject::readMemory(void *address, void *buffer, unsigned long length) const {
     if (length < sizeof(long)) {
-        LOG_ERROR("read memory length need > 8");
+        LOG_ERROR("read memory length need > size of long");
         return false;
     }
 
@@ -296,7 +359,7 @@ bool CPTInject::readMemory(void *address, void *buffer, unsigned long length) co
 
 bool CPTInject::writeMemory(void *address, void *buffer, unsigned long length) const {
     if (length < sizeof(long)) {
-        LOG_ERROR("write memory length need > 8");
+        LOG_ERROR("write memory length need > size of long");
         return false;
     }
 
@@ -325,10 +388,31 @@ bool CPTInject::writeMemory(void *address, void *buffer, unsigned long length) c
 }
 
 bool CPTInject::cancelSyscall() const {
-    if (ptrace(PTRACE_POKEUSER, mPid, (sizeof(unsigned long) * ORIG_RAX), (void *)-1) < 0) {
+#ifdef __arm__
+    if (ptrace(PTRACE_SET_SYSCALL, mPid, nullptr, (void *)-1) < 0) {
         LOG_ERROR("cancel syscall failed");
         return false;
     }
+
+#elif __aarch64__
+    long sysNR = -1;
+
+    iovec iov = {};
+
+    iov.iov_base = &sysNR;
+    iov.iov_len = sizeof(long);
+
+    if (ptrace(PTRACE_SETREGSET, mPid, (void *)NT_ARM_SYSTEM_CALL, &iov) < 0) {
+        LOG_ERROR("cancel syscall failed");
+        return false;
+    }
+
+#else
+    if (ptrace(PTRACE_POKEUSER, mPid, offsetof(CRegister, REG_SYSCALL), (void *)-1) < 0) {
+        LOG_ERROR("cancel syscall failed");
+        return false;
+    }
+#endif
 
     return true;
 }

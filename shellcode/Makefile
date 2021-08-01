@@ -1,16 +1,50 @@
 CFLAGS 	+= -D_GNU_SOURCE -std=gnu99
 CFLAGS 	+= -static-libgcc -lgcc
 CFLAGS 	+= -I c-runtime
-CFLAGS  += -shared -fvisibility=hidden -nostdlib
+CFLAGS  += -shared -fvisibility=hidden
 CFLAGS  += -Os -fdata-sections -ffunction-sections
 CFLAGS 	+= -fno-common -fno-stack-protector -fomit-frame-pointer -fno-exceptions -fno-asynchronous-unwind-tables -fno-unwind-tables
 LDFLAGS += -T linker.ld -Wl,--gc-sections
 PORTABLE = -fPIC -fno-builtin
 
-all:
-	$(CC) $(CFLAGS) $(PORTABLE) $(LDFLAGS) -o libspread.so spread/spread.c c-runtime/*.c
-	$(CC) $(CFLAGS) $(PORTABLE) $(LDFLAGS) -o libshrink.so shrink/shrink.c c-runtime/*.c
-	$(CC) $(CFLAGS) $(PORTABLE) $(LDFLAGS) -o libloader.so loader/loader.c loader/elf_loader.c c-runtime/*.c c-runtime/printf/printf.c
+MACHINE	= $(shell uname -m)
+
+all: $(MACHINE)
+
+
+i386: x86
+i486: x86
+i686: x86
+x86:
+	$(CC) $(CFLAGS) $(PORTABLE) $(LDFLAGS) -m32 -nostdlib -o libspread.so spread/spread.c c-runtime/*.c
+	$(CC) $(CFLAGS) $(PORTABLE) $(LDFLAGS) -m32 -nostdlib -o libshrink.so shrink/shrink.c c-runtime/*.c
+	$(CC) $(CFLAGS) $(PORTABLE) $(LDFLAGS) -m32 -nostdlib -o libloader.so loader/loader.c loader/elf_loader.c c-runtime/*.c c-runtime/printf/printf.c
+
+
+amd64: x86_64
+x86_64:
+	$(CC) $(CFLAGS) $(PORTABLE) $(LDFLAGS) -nostdlib -o libspread.so spread/spread.c c-runtime/*.c
+	$(CC) $(CFLAGS) $(PORTABLE) $(LDFLAGS) -nostdlib -o libshrink.so shrink/shrink.c c-runtime/*.c
+	$(CC) $(CFLAGS) $(PORTABLE) $(LDFLAGS) -nostdlib -o libloader.so loader/loader.c loader/elf_loader.c c-runtime/*.c c-runtime/printf/printf.c
+
+
+arm: armv7l
+armhf: armv7l
+armv7: armv7l
+armv7l:
+	$(CC) $(CFLAGS) $(PORTABLE) $(LDFLAGS) -nostartfiles -o libspread.so spread/spread.c c-runtime/*.c
+	$(CC) $(CFLAGS) $(PORTABLE) $(LDFLAGS) -nostartfiles -o libshrink.so shrink/shrink.c c-runtime/*.c
+	$(CC) $(CFLAGS) $(PORTABLE) $(LDFLAGS) -nostartfiles -o libloader.so loader/loader.c loader/elf_loader.c c-runtime/*.c c-runtime/printf/printf.c
+
+
+arm64: aarch64
+armv8: aarch64
+armv8l: aarch64
+aarch64:
+	$(CC) $(CFLAGS) $(PORTABLE) $(LDFLAGS) -nostdlib -o libspread.so spread/spread.c c-runtime/*.c
+	$(CC) $(CFLAGS) $(PORTABLE) $(LDFLAGS) -nostdlib -o libshrink.so shrink/shrink.c c-runtime/*.c
+	$(CC) $(CFLAGS) $(PORTABLE) $(LDFLAGS) -nostdlib -o libloader.so loader/loader.c loader/elf_loader.c c-runtime/*.c c-runtime/printf/printf.c
+
 
 clean:
 	rm libspread.so libshrink.so libloader.so

@@ -8,10 +8,6 @@
 
 #define STACK_SIZE 0x20000
 
-void __attribute__ ((visibility ("default"))) shellcode_begin() {
-
-}
-
 void loader_main(void *ptr) {
     struct CPayload *payload = (struct CPayload *)ptr;
 
@@ -29,22 +25,57 @@ void loader_main(void *ptr) {
 
     z_memcpy(stack, payload, sizeof(struct CPayload));
 
+#ifdef __i386__
+    asm volatile(
+            "mov %0, %%esp;"
+            "push %1;"
+            "call elf_loader;"
+            "push %%eax;"
+            "call z_exit;"
+            ::
+            "r"(stack + STACK_SIZE),
+            "r"(stack));
+#elif __x86_64__
     asm volatile(
             "mov %0, %%rsp;"
             "mov %1, %%rdi;"
-            "call *%2;"
+            "call elf_loader;"
             "mov %%rax, %%rdi;"
             "call z_exit;"
             ::
             "r"(stack + STACK_SIZE),
-            "r"(stack),
-            "a"(elf_loader));
+            "r"(stack));
+#elif __arm__
+    asm volatile(
+            "mov %%sp, %0;"
+            "mov %%r0, %1;"
+            "bl elf_loader;"
+            "bl z_exit;"
+            ::
+            "r"(stack + STACK_SIZE),
+            "r"(stack));
+#elif __aarch64__
+    asm volatile(
+            "mov sp, %[stack];"
+            "mov x0, %[argument];"
+            "bl elf_loader;"
+            "bl z_exit;"
+            ::
+            [stack] "r"(stack + STACK_SIZE),
+            [argument] "r"(stack));
+#else
+#error "unknown arch"
+#endif
 }
 
 void __attribute__ ((visibility ("default"))) shellcode_start() {
+#if defined(__i386__) || defined(__x86_64__)
     asm volatile("nop; nop; call loader_main; int3;");
-}
-
-void __attribute__ ((visibility ("default"))) shellcode_end() {
-
+#elif __arm__
+    asm volatile("nop; bl loader_main; .inst 0xe7f001f0;");
+#elif __aarch64__
+    asm volatile("nop; bl loader_main; .inst 0xd4200000;");
+#else
+#error "unknown arch"
+#endif
 }

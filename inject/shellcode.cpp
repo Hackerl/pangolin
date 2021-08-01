@@ -4,9 +4,7 @@
 constexpr auto PREFIX = "lib";
 constexpr auto EXTENSION = "so";
 
-constexpr auto SHELLCODE_BEGIN = "shellcode_begin";
 constexpr auto SHELLCODE_ENTRY = "shellcode_start";
-constexpr auto SHELLCODE_END = "shellcode_end";
 
 bool CShellcode::load(const std::string &shellcode) {
     std::string filename = CStringHelper::format("%s%s.%s", PREFIX, shellcode.c_str(), EXTENSION);
@@ -29,10 +27,7 @@ bool CShellcode::load(const std::string &shellcode) {
         return false;
     }
 
-    ELFIO::Elf64_Addr begin = -1;
     ELFIO::Elf64_Addr entry = -1;
-    ELFIO::Elf64_Addr end = -1;
-
     ELFIO::symbol_section_accessor symbols(mReader, *it);
 
     for (ELFIO::Elf_Xword i = 0; i < symbols.get_symbols_num(); i++) {
@@ -49,15 +44,13 @@ bool CShellcode::load(const std::string &shellcode) {
             return false;
         }
 
-        if (name == SHELLCODE_BEGIN)
-            begin = value;
-        else if (name == SHELLCODE_ENTRY)
+        if (name == SHELLCODE_ENTRY) {
             entry = value;
-        else if (name == SHELLCODE_END)
-            end = value;
+            break;
+        }
     }
 
-    if (begin == -1 || entry == -1 || end == -1) {
+    if (entry == -1) {
         LOG_ERROR("can't find shellcode symbols");
         return false;
     }
@@ -74,12 +67,13 @@ bool CShellcode::load(const std::string &shellcode) {
         return false;
     }
 
-    auto data = (*sit)->get_data();
-    auto address = (*sit)->get_address();
+    unsigned long address = (*sit)->get_address();
+    unsigned long pageSize = sysconf(_SC_PAGE_SIZE);
 
-    mBegin = data + begin - address;
-    mEntry = data + entry - address;
-    mEnd = data + end - address;
+    mBuffer = (*sit)->get_data();
+    mLength = (*sit)->get_size();
+    mAlign = address & (pageSize - 1);
+    mEntry = entry - address;
 
     return true;
 }

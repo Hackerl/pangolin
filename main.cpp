@@ -78,7 +78,8 @@ int main(int argc, char ** argv) {
 
     int status = 0;
 
-    unsigned long base = ((unsigned long)result + sizeof(payload) + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1);
+    unsigned long pageSize = sysconf(_SC_PAGESIZE);
+    unsigned long base = ((unsigned long)result + sizeof(payload) + pageSize - 1) & ~(pageSize - 1);
     unsigned long stack = (unsigned long)result + PANGOLIN_WORKSPACE_SIZE;
 
     if (!ptInject.run(LOADER, (void *)base, (void *)stack, result, status)) {

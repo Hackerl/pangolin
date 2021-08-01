@@ -2,11 +2,10 @@
 #include <z_memory.h>
 #include <z_syscall.h>
 #include <sys/mman.h>
-#include <sys/user.h>
 
-void __attribute__ ((visibility ("default"))) shellcode_begin() {
-
-}
+#ifndef PAGE_SIZE
+#define PAGE_SIZE 0x1000
+#endif
 
 void *spread_main(unsigned long size) {
     if (!size)
@@ -29,7 +28,13 @@ void *spread_main(unsigned long size) {
 }
 
 void __attribute__ ((visibility ("default"))) shellcode_start() {
+#if defined(__i386__) || defined(__x86_64__)
     asm volatile("nop; nop; call spread_main; int3;");
+#elif __arm__
+    asm volatile("nop; bl spread_main; .inst 0xe7f001f0;");
+#elif __aarch64__
+    asm volatile("nop; bl spread_main; .inst 0xd4200000;");
+#else
+#error "unknown arch"
+#endif
 }
-
-void __attribute__ ((visibility ("default"))) shellcode_end() {}

@@ -3,7 +3,6 @@
 #include <z_log.h>
 #include <z_syscall.h>
 #include <sys/mman.h>
-#include <sys/user.h>
 #include <fcntl.h>
 
 #define STACK_ALIGN     16
@@ -12,6 +11,10 @@
 #define INTERPRETER     1
 
 #define AV_PATH         "/proc/self/auxv"
+
+#ifndef PAGE_SIZE
+#define PAGE_SIZE       0x1000
+#endif
 
 #define ROUND_PG(x)     (((x) + (PAGE_SIZE - 1)) & ~(PAGE_SIZE - 1))
 #define TRUNC_PG(x)     ((x) & ~(PAGE_SIZE - 1))
@@ -117,7 +120,8 @@ int elf_check(Elf64_Ehdr *ehdr) {
 }
 
 int elf_map(const char *path, struct CLoaderContext *ctx) {
-    struct stat sb = {};
+    struct stat sb;
+    z_memset(&sb, 0, sizeof(sb));
 
     if (z_stat(path, &sb) < 0) {
         LOG("stat file failed: %s", path);
@@ -198,8 +202,11 @@ int elf_map(const char *path, struct CLoaderContext *ctx) {
 int elf_loader(struct CPayload *payload) {
     int argc = 0;
 
-    char *argv[PAYLOAD_MAX_ARG] = {};
-    char *env[PAYLOAD_MAX_ENV] = {};
+    char *argv[PAYLOAD_MAX_ARG];
+    char *env[PAYLOAD_MAX_ENV];
+
+    z_memset(argv, 0, sizeof(argv));
+    z_memset(env, 0, sizeof(env));
 
     if (!z_strlen(payload->argv)) {
         LOG("empty argv");
@@ -234,7 +241,9 @@ int elf_loader(struct CPayload *payload) {
         LOG("env %s", *e);
 
     const char *path = argv[0];
-    struct CLoaderContext context[2] = {};
+
+    struct CLoaderContext context[2];
+    z_memset(context, 0, sizeof(context));
 
     if (elf_map(path, context) < 0) {
         LOG("elf mapping failed: %s", path);
@@ -248,7 +257,8 @@ int elf_loader(struct CPayload *payload) {
         return -1;
     }
 
-    char av[1024] = {};
+    char av[1024];
+    z_memset(av, 0, sizeof(av));
 
     ssize_t length = z_read(fd, av, sizeof(av));
 
@@ -287,7 +297,9 @@ int elf_loader(struct CPayload *payload) {
         }
     }
 
-    unsigned char buffer[4096] = {};
+    unsigned char buffer[4096];
+    z_memset(buffer, 0, sizeof(buffer));
+
     unsigned long entry = context[INTERPRETER].entry ? context[INTERPRETER].entry : context[PROGRAM].entry;
 
     unsigned char *stack = (unsigned char *)(((unsigned long)buffer + STACK_ALIGN - 1) & ~(STACK_ALIGN - 1));
@@ -307,7 +319,17 @@ int elf_loader(struct CPayload *payload) {
 
     z_memcpy(p, av, length);
 
+#ifdef __i386__
+    asm volatile("mov %0, %%esp; xor %%edx, %%edx; jmp *%1;" :: "r"(stack), "a"(entry));
+#elif __x86_64__
     asm volatile("mov %0, %%rsp; xor %%rdx, %%rdx; jmp *%1;" :: "r"(stack), "a"(entry));
+#elif __arm__
+    asm volatile("mov %%sp, %0; bx %[func];" :: "r"(stack), [func] "r"(entry));
+#elif __aarch64__
+    asm volatile("mov sp, %[stack]; br %[func];" :: [stack] "r"(stack), [func] "r"(entry));
+#else
+#error "unknown arch"
+#endif
 
     return 0;
 }
