@@ -1,5 +1,6 @@
 #include "pt_inject.h"
 #include "shellcode.h"
+#include <cstddef>
 #include <sys/ptrace.h>
 #include <sys/uio.h>
 #include <elf.h>
