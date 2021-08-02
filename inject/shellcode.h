@@ -12,7 +12,7 @@ public:
     const char *mBuffer;
 
 public:
-    unsigned long mAlign;
+    unsigned long mOffset;
     unsigned long mEntry;
     unsigned long mLength;
 

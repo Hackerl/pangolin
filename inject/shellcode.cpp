@@ -72,7 +72,7 @@ bool CShellcode::load(const std::string &shellcode) {
 
     mBuffer = (*sit)->get_data();
     mLength = (*sit)->get_size();
-    mAlign = address & (pageSize - 1);
+    mOffset = address & (pageSize - 1);
     mEntry = entry - address;
 
     return true;

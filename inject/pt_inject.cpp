@@ -118,8 +118,8 @@ bool CPTInject::run(const char *name, void *base, void *stack, void *arg, int &s
         return false;
     }
 
-    unsigned long offset = shellcode.mAlign + shellcode.mEntry;
-    unsigned long length = shellcode.mAlign + shellcode.mLength;
+    unsigned long entry = shellcode.mOffset + shellcode.mEntry;
+    unsigned long length = shellcode.mOffset + shellcode.mLength;
 
     void *memoryBase = base;
     std::unique_ptr<unsigned char> memoryBackup(new unsigned char[length]());
@@ -134,14 +134,14 @@ bool CPTInject::run(const char *name, void *base, void *stack, void *arg, int &s
     if (!readMemory(memoryBase, memoryBackup.get(), length))
         return false;
 
-    LOG_INFO("inject code at: %p entry: 0x%lx size: 0x%lx", memoryBase, offset, length);
+    LOG_INFO("inject code at: %p entry: 0x%lx size: 0x%lx", memoryBase, entry, length);
 
-    if (!writeMemory((char *)memoryBase + shellcode.mAlign, (void *)shellcode.mBuffer, shellcode.mLength))
+    if (!writeMemory((char *)memoryBase + shellcode.mOffset, (void *)shellcode.mBuffer, shellcode.mLength))
         return false;
 
     CRegister modifyRegs = mRegister;
 
-    modifyRegs.REG_PC = (unsigned long long)memoryBase + PC_OFFSET + offset;
+    modifyRegs.REG_PC = (unsigned long long)memoryBase + PC_OFFSET + entry;
     modifyRegs.REG_STACK = stack ? (unsigned long long)stack : mRegister.REG_STACK;
 
 #ifdef __i386__
@@ -222,8 +222,8 @@ bool CPTInject::call(const char *name, void *base, void *stack, void *arg, void 
         return false;
     }
 
-    unsigned long offset = shellcode.mAlign + shellcode.mEntry;
-    unsigned long length = shellcode.mAlign + shellcode.mLength;
+    unsigned long entry = shellcode.mOffset + shellcode.mEntry;
+    unsigned long length = shellcode.mOffset + shellcode.mLength;
 
     void *memoryBase = base;
     std::unique_ptr<unsigned char> memoryBackup(new unsigned char[length]());
@@ -238,14 +238,14 @@ bool CPTInject::call(const char *name, void *base, void *stack, void *arg, void 
     if (!readMemory(memoryBase, memoryBackup.get(), length))
         return false;
 
-    LOG_INFO("inject code at: %p entry: 0x%lx size: 0x%lx", memoryBase, offset, length);
+    LOG_INFO("inject code at: %p entry: 0x%lx size: 0x%lx", memoryBase, entry, length);
 
-    if (!writeMemory((char *)memoryBase + shellcode.mAlign, (void *)shellcode.mBuffer, shellcode.mLength))
+    if (!writeMemory((char *)memoryBase + shellcode.mOffset, (void *)shellcode.mBuffer, shellcode.mLength))
         return false;
 
     CRegister modifyRegs = mRegister;
 
-    modifyRegs.REG_PC = (unsigned long long)memoryBase + PC_OFFSET + offset;
+    modifyRegs.REG_PC = (unsigned long long)memoryBase + PC_OFFSET + entry;
     modifyRegs.REG_STACK = stack ? (unsigned long long)stack : mRegister.REG_STACK;
 
 #ifdef __i386__
@@ -310,7 +310,7 @@ bool CPTInject::getRegister(CRegister &regs) const {
     io.iov_base = &regs;
     io.iov_len = sizeof(CRegister);
 
-    if (ptrace(PTRACE_GETREGSET, mPid, (void*)NT_PRSTATUS, (void*)&io) < 0) {
+    if (ptrace(PTRACE_GETREGSET, mPid, (void *)NT_PRSTATUS, (void *)&io) < 0) {
         LOG_ERROR("get register failed: %s", strerror(errno));
         return false;
     }
@@ -324,7 +324,7 @@ bool CPTInject::setRegister(CRegister regs) const {
     io.iov_base = &regs;
     io.iov_len = sizeof(CRegister);
 
-    if (ptrace(PTRACE_SETREGSET, mPid, (void*)NT_PRSTATUS, (void*)&io) < 0) {
+    if (ptrace(PTRACE_SETREGSET, mPid, (void *)NT_PRSTATUS, (void *)&io) < 0) {
         LOG_ERROR("set register failed");
         return false;
     }
@@ -368,7 +368,7 @@ bool CPTInject::writeMemory(void *address, void *buffer, unsigned long length) c
     unsigned long piece = length % sizeof(long);
 
     if (piece) {
-        if (ptrace(PTRACE_POKETEXT, mPid, (unsigned char*)address + length - sizeof(long), *(long *)((unsigned char *)buffer + length - sizeof(long))) < 0) {
+        if (ptrace(PTRACE_POKETEXT, mPid, (unsigned char *)address + length - sizeof(long), *(long *)((unsigned char *)buffer + length - sizeof(long))) < 0) {
             LOG_ERROR("write memory failed");
             return false;
         }
@@ -377,7 +377,7 @@ bool CPTInject::writeMemory(void *address, void *buffer, unsigned long length) c
     }
 
     while (n < length) {
-        if (ptrace(PTRACE_POKETEXT, mPid, (unsigned char*)address + n, *(long *)((unsigned char *)buffer + n)) < 0) {
+        if (ptrace(PTRACE_POKETEXT, mPid, (unsigned char *)address + n, *(long *)((unsigned char *)buffer + n)) < 0) {
             LOG_ERROR("write memory failed");
             return false;
         }
