@@ -1,5 +1,4 @@
 CFLAGS 	+= -D_GNU_SOURCE -std=gnu99
-CFLAGS 	+= -static-libgcc -lgcc
 CFLAGS 	+= -I c-runtime
 CFLAGS  += -shared -fvisibility=hidden
 CFLAGS  += -Os -fdata-sections -ffunction-sections
@@ -18,7 +17,7 @@ i686: x86
 x86:
 	$(CC) $(CFLAGS) $(PORTABLE) $(LDFLAGS) -m32 -nostdlib -o libspread.so spread/spread.c c-runtime/*.c
 	$(CC) $(CFLAGS) $(PORTABLE) $(LDFLAGS) -m32 -nostdlib -o libshrink.so shrink/shrink.c c-runtime/*.c
-	$(CC) $(CFLAGS) $(PORTABLE) $(LDFLAGS) -m32 -nostdlib -o libloader.so loader/loader.c loader/elf_loader.c c-runtime/*.c c-runtime/printf/printf.c
+	$(CC) $(CFLAGS) $(PORTABLE) $(LDFLAGS) -m32 -nostdlib -o libloader.so loader/loader.c loader/elf_loader.c c-runtime/*.c c-runtime/printf/printf.c -static-libgcc -lgcc
 
 
 amd64: x86_64

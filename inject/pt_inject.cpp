@@ -141,8 +141,8 @@ bool CPTInject::run(const char *name, void *base, void *stack, void *arg, int &s
 
     CRegister modifyRegs = mRegister;
 
-    modifyRegs.REG_PC = (unsigned long long)memoryBase + PC_OFFSET + entry;
-    modifyRegs.REG_STACK = stack ? (unsigned long long)stack : mRegister.REG_STACK;
+    modifyRegs.REG_PC = (unsigned long)memoryBase + PC_OFFSET + entry;
+    modifyRegs.REG_STACK = stack ? (unsigned long)stack : mRegister.REG_STACK;
 
 #ifdef __i386__
     if (!writeMemory((char *)modifyRegs.REG_STACK - sizeof(arg), &arg, sizeof(arg)))
@@ -150,7 +150,7 @@ bool CPTInject::run(const char *name, void *base, void *stack, void *arg, int &s
 
     modifyRegs.REG_STACK -= sizeof(arg);
 #else
-    modifyRegs.REG_ARG = (unsigned long long)arg;
+    modifyRegs.REG_ARG = (unsigned long)arg;
 #endif
 
     if (!setRegister(modifyRegs))
@@ -179,7 +179,7 @@ bool CPTInject::run(const char *name, void *base, void *stack, void *arg, int &s
         sig = WSTOPSIG(s);
 
         if (sig == SIGSEGV) {
-            LOG_ERROR("segmentation fault: 0x%llx", currentRegs.REG_PC);
+            LOG_ERROR("segmentation fault: 0x%lx", currentRegs.REG_PC);
             break;
         }
 
@@ -245,8 +245,8 @@ bool CPTInject::call(const char *name, void *base, void *stack, void *arg, void 
 
     CRegister modifyRegs = mRegister;
 
-    modifyRegs.REG_PC = (unsigned long long)memoryBase + PC_OFFSET + entry;
-    modifyRegs.REG_STACK = stack ? (unsigned long long)stack : mRegister.REG_STACK;
+    modifyRegs.REG_PC = (unsigned long)memoryBase + PC_OFFSET + entry;
+    modifyRegs.REG_STACK = stack ? (unsigned long)stack : mRegister.REG_STACK;
 
 #ifdef __i386__
     if (!writeMemory((char *)modifyRegs.REG_STACK - sizeof(arg), &arg, sizeof(arg)))
@@ -254,7 +254,7 @@ bool CPTInject::call(const char *name, void *base, void *stack, void *arg, void 
 
     modifyRegs.REG_STACK -= sizeof(arg);
 #else
-    modifyRegs.REG_ARG = (unsigned long long)arg;
+    modifyRegs.REG_ARG = (unsigned long)arg;
 #endif
 
     if (!setRegister(modifyRegs))
@@ -294,7 +294,7 @@ bool CPTInject::call(const char *name, void *base, void *stack, void *arg, void 
         return false;
 
     if (sig == SIGSEGV) {
-        LOG_ERROR("segmentation fault: 0x%llx", currentRegs.REG_PC);
+        LOG_ERROR("segmentation fault: 0x%lx", currentRegs.REG_PC);
         return false;
     }
 
