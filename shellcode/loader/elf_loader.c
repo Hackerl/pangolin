@@ -4,6 +4,7 @@
 #include <z_syscall.h>
 #include <sys/mman.h>
 #include <fcntl.h>
+#include <elf.h>
 
 #define STACK_ALIGN     16
 
@@ -19,14 +20,31 @@
 #define ROUND_PG(x)     (((x) + (PAGE_SIZE - 1)) & ~(PAGE_SIZE - 1))
 #define TRUNC_PG(x)     ((x) & ~(PAGE_SIZE - 1))
 
+#if __i386__ || __arm__
+
+#define Elf_Ehdr        Elf32_Ehdr
+#define Elf_Phdr        Elf32_Phdr
+#define Elf_auxv_t      Elf32_auxv_t
+#define ELF_CLASS       ELFCLASS32
+
+#elif __x86_64__ || __aarch64__
+
+#define Elf_Ehdr        Elf64_Ehdr
+#define Elf_Phdr        Elf64_Phdr
+#define Elf_auxv_t      Elf64_auxv_t
+#define ELF_CLASS       ELFCLASS64
+
+#endif
+
+
 unsigned long load_segments(void *buffer) {
-    Elf64_Ehdr *ehdr = buffer;
-    Elf64_Phdr *phdr = buffer + ehdr->e_phoff;
+    Elf_Ehdr *ehdr = buffer;
+    Elf_Phdr *phdr = buffer + ehdr->e_phoff;
 
     unsigned long minVA = -1;
     unsigned long maxVA = 0;
 
-    for (Elf64_Phdr *i = phdr; i < &phdr[ehdr->e_phnum]; i++) {
+    for (Elf_Phdr *i = phdr; i < &phdr[ehdr->e_phnum]; i++) {
         if (i->p_type != PT_LOAD)
             continue;
 
@@ -59,7 +77,7 @@ unsigned long load_segments(void *buffer) {
 
     LOG("segment base: 0x%lx[0x%lx]", base, maxVA - minVA);
 
-    for (Elf64_Phdr *i = phdr; i < &phdr[ehdr->e_phnum]; i++) {
+    for (Elf_Phdr *i = phdr; i < &phdr[ehdr->e_phnum]; i++) {
         if (i->p_type != PT_LOAD)
             continue;
 
@@ -96,7 +114,7 @@ unsigned long load_segments(void *buffer) {
     return (unsigned long)base;
 }
 
-int elf_check(Elf64_Ehdr *ehdr) {
+int elf_check(Elf_Ehdr *ehdr) {
     if (
             ehdr->e_ident[EI_MAG0] != ELFMAG0 ||
             ehdr->e_ident[EI_MAG1] != ELFMAG1 ||
@@ -106,17 +124,10 @@ int elf_check(Elf64_Ehdr *ehdr) {
         return -1;
     }
 
-#if __i386__ || __arm__
-    if (ehdr->e_ident[EI_CLASS] != ELFCLASS32 || ehdr->e_ident[EI_VERSION] != EV_CURRENT) {
+    if (ehdr->e_ident[EI_CLASS] != ELF_CLASS || ehdr->e_ident[EI_VERSION] != EV_CURRENT) {
         LOG("elf class error");
         return -1;
     }
-#else
-    if (ehdr->e_ident[EI_CLASS] != ELFCLASS64 || ehdr->e_ident[EI_VERSION] != EV_CURRENT) {
-        LOG("elf class error");
-        return -1;
-    }
-#endif
 
     if (ehdr->e_type != ET_EXEC && ehdr->e_type != ET_DYN) {
         LOG("elf type error");
@@ -168,10 +179,10 @@ int elf_map(const char *path, struct CLoaderContext *ctx) {
         return -1;
     }
 
-    Elf64_Ehdr *ehdr = buffer;
-    Elf64_Phdr *phdr = buffer + ehdr->e_phoff;
+    Elf_Ehdr *ehdr = buffer;
+    Elf_Phdr *phdr = buffer + ehdr->e_phoff;
 
-    for (Elf64_Phdr *i = phdr; i < &phdr[ehdr->e_phnum]; i++) {
+    for (Elf_Phdr *i = phdr; i < &phdr[ehdr->e_phnum]; i++) {
         if (i->p_type == PT_INTERP) {
             const char *interpreter = buffer + i->p_offset;
 
@@ -276,7 +287,7 @@ int elf_loader(struct CPayload *payload) {
 
     z_close(fd);
 
-    for (Elf64_auxv_t *i = (Elf64_auxv_t *)av; i->a_type != AT_NULL; i++) {
+    for (Elf_auxv_t *i = (Elf_auxv_t *)av; i->a_type != AT_NULL; i++) {
         switch (i->a_type) {
             case AT_PHDR:
                 i->a_un.a_val = context[PROGRAM].header;

@@ -2,7 +2,6 @@
 #define PANGOLIN_ELF_LOADER_H
 
 #include "payload.h"
-#include <elf.h>
 
 struct CLoaderContext {
     unsigned long base;
@@ -14,9 +13,7 @@ struct CLoaderContext {
 
 unsigned long load_segments(void *buffer);
 
-int elf_check(Elf64_Ehdr *ehdr);
 int elf_map(const char *path, struct CLoaderContext *ctx);
-
 int elf_loader(struct CPayload *payload);
 
 #endif //PANGOLIN_ELF_LOADER_H
