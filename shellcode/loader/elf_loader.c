@@ -106,10 +106,17 @@ int elf_check(Elf64_Ehdr *ehdr) {
         return -1;
     }
 
+#if __i386__ || __arm__
+    if (ehdr->e_ident[EI_CLASS] != ELFCLASS32 || ehdr->e_ident[EI_VERSION] != EV_CURRENT) {
+        LOG("elf class error");
+        return -1;
+    }
+#else
     if (ehdr->e_ident[EI_CLASS] != ELFCLASS64 || ehdr->e_ident[EI_VERSION] != EV_CURRENT) {
         LOG("elf class error");
         return -1;
     }
+#endif
 
     if (ehdr->e_type != ET_EXEC && ehdr->e_type != ET_DYN) {
         LOG("elf type error");

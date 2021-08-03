@@ -389,13 +389,7 @@ bool CPTInject::writeMemory(void *address, void *buffer, unsigned long length) c
 }
 
 bool CPTInject::cancelSyscall() const {
-#ifdef __arm__
-    if (ptrace(PTRACE_SET_SYSCALL, mPid, nullptr, (void *)-1) < 0) {
-        LOG_ERROR("cancel syscall failed");
-        return false;
-    }
-
-#elif __aarch64__
+#if __arm__ || __aarch64__
     long sysNR = -1;
 
     iovec iov = {};

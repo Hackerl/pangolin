@@ -6,7 +6,7 @@ void shrink_main(void *ptr) {
 }
 
 void __attribute__ ((visibility ("default"))) shellcode_start() {
-#if defined(__i386__) || defined(__x86_64__)
+#if __i386__ || __x86_64__
     asm volatile("nop; nop; call shrink_main; int3;");
 #elif __arm__
     asm volatile("nop; bl shrink_main; .inst 0xe7f001f0;");
