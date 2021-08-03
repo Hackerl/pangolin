@@ -145,7 +145,7 @@ bool CPTInject::run(const char *name, void *base, void *stack, void *arg, int &s
     modifyRegs.REG_STACK = stack ? (unsigned long long)stack : mRegister.REG_STACK;
 
 #ifdef __i386__
-    if (!writeMemory(modifyRegs.REG_STACK - sizeof(arg), &arg, sizeof(arg)))
+    if (!writeMemory((char *)modifyRegs.REG_STACK - sizeof(arg), &arg, sizeof(arg)))
         return false;
 
     modifyRegs.REG_STACK -= sizeof(arg);
@@ -249,7 +249,7 @@ bool CPTInject::call(const char *name, void *base, void *stack, void *arg, void 
     modifyRegs.REG_STACK = stack ? (unsigned long long)stack : mRegister.REG_STACK;
 
 #ifdef __i386__
-    if (!writeMemory(modifyRegs.REG_STACK - sizeof(arg), &arg, sizeof(arg)))
+    if (!writeMemory((char *)modifyRegs.REG_STACK - sizeof(arg), &arg, sizeof(arg)))
         return false;
 
     modifyRegs.REG_STACK -= sizeof(arg);
