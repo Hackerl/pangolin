@@ -22,12 +22,18 @@
 
 #if __i386__ || __arm__
 
+#define STAT            stat64
+#define Z_STAT          z_stat64
+
 #define Elf_Ehdr        Elf32_Ehdr
 #define Elf_Phdr        Elf32_Phdr
 #define Elf_auxv_t      Elf32_auxv_t
 #define ELF_CLASS       ELFCLASS32
 
 #elif __x86_64__ || __aarch64__
+
+#define STAT            stat
+#define Z_STAT          z_stat
 
 #define Elf_Ehdr        Elf64_Ehdr
 #define Elf_Phdr        Elf64_Phdr
@@ -138,10 +144,10 @@ int elf_check(Elf_Ehdr *ehdr) {
 }
 
 int elf_map(const char *path, struct CLoaderContext *ctx) {
-    struct stat sb;
+    struct STAT sb;
     z_memset(&sb, 0, sizeof(sb));
 
-    if (z_stat(path, &sb) < 0) {
+    if (Z_STAT(path, &sb) < 0) {
         LOG("stat file failed: %s", path);
         return -1;
     }
@@ -342,9 +348,9 @@ int elf_loader(struct CPayload *payload) {
 #elif __x86_64__
     asm volatile("mov %0, %%rsp; xor %%rdx, %%rdx; jmp *%1;" :: "r"(stack), "a"(entry));
 #elif __arm__
-    asm volatile("mov %%sp, %0; bx %[func];" :: "r"(stack), [func] "r"(entry));
+    asm volatile("mov %%sp, %0; mov %%r0, #0; bx %[func];" :: "r"(stack), [func] "r"(entry));
 #elif __aarch64__
-    asm volatile("mov sp, %[stack]; br %[func];" :: [stack] "r"(stack), [func] "r"(entry));
+    asm volatile("mov sp, %[stack]; mov w0, #0; br %[func];" :: [stack] "r"(stack), [func] "r"(entry));
 #else
 #error "unknown arch"
 #endif
