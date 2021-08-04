@@ -32,6 +32,8 @@
 
 #elif __arm__
 
+#include <asm/ptrace.h>
+
 #define REG_PC              uregs[15]
 #define REG_ARG             uregs[0]
 #define REG_RET             uregs[0]
@@ -190,16 +192,18 @@ bool CPTInject::run(const char *name, void *base, void *stack, void *arg, int &s
 
         sig = 0;
 
+#if __i386__ || __x86_64__
         if (currentRegs.REG_SYSCALL == -1) {
             LOG_INFO("exit status: %d", status);
             break;
         }
+#endif
 
         if (currentRegs.REG_SYSCALL == SYS_exit || currentRegs.REG_SYSCALL == SYS_exit_group) {
             status = (int)currentRegs.REG_SYSCALL_ARG;
             cancelSyscall();
 
-#ifdef __aarch64__
+#if __arm__ || __aarch64__
             LOG_INFO("exit status: %d", status);
             break;
 #endif
@@ -389,7 +393,13 @@ bool CPTInject::writeMemory(void *address, void *buffer, unsigned long length) c
 }
 
 bool CPTInject::cancelSyscall() const {
-#if __arm__ || __aarch64__
+#ifdef __arm__
+    if (ptrace((__ptrace_request)PTRACE_SET_SYSCALL, mPid, nullptr, (void *)-1) < 0) {
+        LOG_ERROR("cancel syscall failed");
+        return false;
+    }
+
+#elif __aarch64__
     long sysNR = -1;
 
     iovec iov = {};
