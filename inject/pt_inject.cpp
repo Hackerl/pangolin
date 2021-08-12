@@ -59,10 +59,11 @@
 CPTInject::CPTInject(int pid) {
     mPid = pid;
     mAttached = false;
+    mTerminated = false;
 }
 
 CPTInject::~CPTInject() {
-    if (mAttached)
+    if (mAttached && !mTerminated)
         detach();
 }
 
@@ -81,7 +82,7 @@ bool CPTInject::attach() {
         }
 
         if (WSTOPSIG(s) != SIGSTOP) {
-            LOG_ERROR("attach receive signal: %s", strsignal(WSTOPSIG(s)));
+            LOG_ERROR("receive signal: %s", strsignal(WSTOPSIG(s)));
             return false;
         }
     }
@@ -106,13 +107,13 @@ bool CPTInject::detach() {
         }
     }
 
-    LOG_INFO("detach process success");
+    LOG_INFO("detach success");
 
     mAttached = false;
     return true;
 }
 
-bool CPTInject::run(const char *name, void *base, void *stack, void *arg, int &status) const {
+bool CPTInject::run(const char *name, void *base, void *stack, void *arg, int &status) {
     CShellcode shellcode;
 
     if (!shellcode.load(name)) {
@@ -162,14 +163,21 @@ bool CPTInject::run(const char *name, void *base, void *stack, void *arg, int &s
 
     while (true) {
         if (ptrace(PTRACE_SYSCALL, mPid, nullptr, sig) < 0) {
-            LOG_ERROR("trace syscall failed");
+            LOG_ERROR("ptrace syscall failed");
             return false;
         }
 
         int s = 0;
 
-        if (waitpid(mPid, &s, 0) < 0 || WIFEXITED(s)) {
+        if (waitpid(mPid, &s, 0) < 0) {
             LOG_ERROR("wait pid failed");
+            return false;
+        }
+
+        if (WIFSIGNALED(s)) {
+            LOG_WARNING("process terminated: %d", WTERMSIG(s));
+
+            mTerminated = true;
             return false;
         }
 
@@ -218,7 +226,7 @@ bool CPTInject::run(const char *name, void *base, void *stack, void *arg, int &s
     return sig != SIGSEGV;
 }
 
-bool CPTInject::call(const char *name, void *base, void *stack, void *arg, void **result) const {
+bool CPTInject::call(const char *name, void *base, void *stack, void *arg, void **result) {
     CShellcode shellcode;
 
     if (!shellcode.load(name)) {
@@ -268,14 +276,21 @@ bool CPTInject::call(const char *name, void *base, void *stack, void *arg, void 
 
     while (true) {
         if (ptrace(PTRACE_CONT, mPid, nullptr, sig) < 0) {
-            LOG_ERROR("trace continue failed");
+            LOG_ERROR("ptrace continue failed");
             return false;
         }
 
         int s = 0;
 
-        if (waitpid(mPid, &s, 0) < 0 || WIFEXITED(s)) {
+        if (waitpid(mPid, &s, 0) < 0) {
             LOG_ERROR("wait pid failed");
+            return false;
+        }
+
+        if (WIFSIGNALED(s)) {
+            LOG_WARNING("process terminated: %d", WTERMSIG(s));
+
+            mTerminated = true;
             return false;
         }
 

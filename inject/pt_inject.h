@@ -23,8 +23,8 @@ public:
     bool detach();
 
 public:
-    bool run(const char *name, void *base, void *stack, void *arg, int &status) const;
-    bool call(const char *name, void *base, void *stack, void *arg, void **result) const;
+    bool run(const char *name, void *base, void *stack, void *arg, int &status);
+    bool call(const char *name, void *base, void *stack, void *arg, void **result);
 
 private:
     bool searchExecZone(void **base) const;
@@ -43,6 +43,7 @@ private:
 private:
     int mPid;
     bool mAttached;
+    bool mTerminated;
     std::list<int> mThreads;
 
 private:

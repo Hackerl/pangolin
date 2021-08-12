@@ -1,7 +1,6 @@
 #include "inject/pt_inject.h"
 #include <common/cmdline.h>
 #include <common/log.h>
-#include <common/utils/shell.h>
 #include <loader/payload.h>
 
 constexpr auto PANGOLIN_WORKSPACE_SIZE = 0x10000;
@@ -33,19 +32,19 @@ int main(int argc, char ** argv) {
     CPTInject ptInject(pid);
 
     if (!ptInject.init()) {
-        LOG_ERROR("ptrace injector init failed");
+        LOG_ERROR("injector init failed");
         return -1;
     }
 
     if (!ptInject.attach()) {
-        LOG_ERROR("ptrace injector attach failed");
+        LOG_ERROR("injector attach failed");
         return -1;
     }
 
     void *result = nullptr;
 
     if (!ptInject.call(SPREAD, nullptr, nullptr, (void *)PANGOLIN_WORKSPACE_SIZE, &result)) {
-        LOG_ERROR("call spread shellcode failed");
+        LOG_ERROR("spread shellcode execute failed");
         return -1;
     }
 
@@ -55,7 +54,7 @@ int main(int argc, char ** argv) {
     std::list<std::string> environs;
 
     if (!CShellAPI::expansion(commandline, arguments) || !CShellAPI::expansion(env, environs)) {
-        LOG_ERROR("shell expansion failed");
+        LOG_ERROR("commandline expansion failed");
         return -1;
     }
 
@@ -83,14 +82,14 @@ int main(int argc, char ** argv) {
     unsigned long stack = (unsigned long)result + PANGOLIN_WORKSPACE_SIZE;
 
     if (!ptInject.run(LOADER, (void *)base, (void *)stack, result, status)) {
-        LOG_ERROR("run loader shellcode failed");
+        LOG_ERROR("loader shellcode execute failed");
         return -1;
     }
 
     LOG_INFO("free workspace: %p", result);
 
     if (!ptInject.call(SHRINK, nullptr, nullptr, result, nullptr)) {
-        LOG_ERROR("call shrink shellcode failed");
+        LOG_ERROR("shrink shellcode execute failed");
         return -1;
     }
 
