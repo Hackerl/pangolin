@@ -70,14 +70,14 @@ CPTInject::~CPTInject() {
 bool CPTInject::attach() {
     for (const auto& t: mThreads){
         if (ptrace(PTRACE_ATTACH, t, nullptr, nullptr) < 0) {
-            LOG_ERROR("attach thread failed: %d", t);
+            LOG_ERROR("attach thread %d failed: %s", t, strerror(errno));
             return false;
         }
 
         int s = 0;
 
         if (waitpid(t, &s, WUNTRACED) != t) {
-            LOG_ERROR("wait pid failed: %d",  t);
+            LOG_ERROR("wait pid failed: %s", strerror(errno));
             return false;
         }
 
@@ -90,7 +90,7 @@ bool CPTInject::attach() {
     if (!getRegister(mRegister))
         return false;
 
-    LOG_INFO("attach process success");
+    LOG_INFO("attach success");
 
     mAttached = true;
     return true;
@@ -102,7 +102,7 @@ bool CPTInject::detach() {
 
     for (const auto& t: mThreads){
         if (ptrace(PTRACE_DETACH, t, nullptr, nullptr) < 0) {
-            LOG_ERROR("detach thread failed: %d", t);
+            LOG_ERROR("detach thread %d failed: %s", t, strerror(errno));
             continue;
         }
     }
@@ -163,14 +163,14 @@ bool CPTInject::run(const char *name, void *base, void *stack, void *arg, int &s
 
     while (true) {
         if (ptrace(PTRACE_SYSCALL, mPid, nullptr, sig) < 0) {
-            LOG_ERROR("ptrace syscall failed");
+            LOG_ERROR("ptrace syscall failed: %s", strerror(errno));
             return false;
         }
 
         int s = 0;
 
         if (waitpid(mPid, &s, 0) < 0) {
-            LOG_ERROR("wait pid failed");
+            LOG_ERROR("wait pid failed: %s", strerror(errno));
             return false;
         }
 
@@ -276,14 +276,14 @@ bool CPTInject::call(const char *name, void *base, void *stack, void *arg, void 
 
     while (true) {
         if (ptrace(PTRACE_CONT, mPid, nullptr, sig) < 0) {
-            LOG_ERROR("ptrace continue failed");
+            LOG_ERROR("ptrace continue failed: %s", strerror(errno));
             return false;
         }
 
         int s = 0;
 
         if (waitpid(mPid, &s, 0) < 0) {
-            LOG_ERROR("wait pid failed");
+            LOG_ERROR("wait pid failed: %s", strerror(errno));
             return false;
         }
 
@@ -344,7 +344,7 @@ bool CPTInject::setRegister(CRegister regs) const {
     io.iov_len = sizeof(CRegister);
 
     if (ptrace(PTRACE_SETREGSET, mPid, (void *)NT_PRSTATUS, (void *)&io) < 0) {
-        LOG_ERROR("set register failed");
+        LOG_ERROR("set register failed: %s", strerror(errno));
         return false;
     }
 
@@ -353,7 +353,7 @@ bool CPTInject::setRegister(CRegister regs) const {
 
 bool CPTInject::readMemory(void *address, void *buffer, unsigned long length) const {
     if (length < sizeof(long)) {
-        LOG_ERROR("read memory length need > size of long");
+        LOG_ERROR("read memory length need greater than size of long");
         return false;
     }
 
@@ -362,15 +362,25 @@ bool CPTInject::readMemory(void *address, void *buffer, unsigned long length) co
 
     if (piece) {
         long r = ptrace(PTRACE_PEEKTEXT, mPid, (unsigned char *)address + length - sizeof(long), nullptr);
-        *(long *)((unsigned char *)buffer + length - sizeof(long)) = r;
 
+        if (r == -1 && errno != 0) {
+            LOG_ERROR("read memory failed: %s", strerror(errno));
+            return false;
+        }
+
+        *(long *)((unsigned char *)buffer + length - sizeof(long)) = r;
         length -= piece;
     }
 
     while (n < length) {
         long r = ptrace(PTRACE_PEEKTEXT, mPid, (unsigned char *)address + n, nullptr);
-        *(long *)((unsigned char *)buffer + n) = r;
 
+        if (r == -1 && errno != 0) {
+            LOG_ERROR("read memory failed: %s", strerror(errno));
+            return false;
+        }
+
+        *(long *)((unsigned char *)buffer + n) = r;
         n += sizeof(long);
     }
 
@@ -379,7 +389,7 @@ bool CPTInject::readMemory(void *address, void *buffer, unsigned long length) co
 
 bool CPTInject::writeMemory(void *address, void *buffer, unsigned long length) const {
     if (length < sizeof(long)) {
-        LOG_ERROR("write memory length need > size of long");
+        LOG_ERROR("write memory length need greater than size of long");
         return false;
     }
 
@@ -388,7 +398,7 @@ bool CPTInject::writeMemory(void *address, void *buffer, unsigned long length) c
 
     if (piece) {
         if (ptrace(PTRACE_POKETEXT, mPid, (unsigned char *)address + length - sizeof(long), *(long *)((unsigned char *)buffer + length - sizeof(long))) < 0) {
-            LOG_ERROR("write memory failed");
+            LOG_ERROR("write memory failed: %s", strerror(errno));
             return false;
         }
 
@@ -397,7 +407,7 @@ bool CPTInject::writeMemory(void *address, void *buffer, unsigned long length) c
 
     while (n < length) {
         if (ptrace(PTRACE_POKETEXT, mPid, (unsigned char *)address + n, *(long *)((unsigned char *)buffer + n)) < 0) {
-            LOG_ERROR("write memory failed");
+            LOG_ERROR("write memory failed: %s", strerror(errno));
             return false;
         }
 
@@ -410,7 +420,7 @@ bool CPTInject::writeMemory(void *address, void *buffer, unsigned long length) c
 bool CPTInject::cancelSyscall() const {
 #ifdef __arm__
     if (ptrace((__ptrace_request)PTRACE_SET_SYSCALL, mPid, nullptr, (void *)-1) < 0) {
-        LOG_ERROR("cancel syscall failed");
+        LOG_ERROR("cancel syscall failed: %s", strerror(errno));
         return false;
     }
 
@@ -423,13 +433,13 @@ bool CPTInject::cancelSyscall() const {
     iov.iov_len = sizeof(long);
 
     if (ptrace(PTRACE_SETREGSET, mPid, (void *)NT_ARM_SYSTEM_CALL, &iov) < 0) {
-        LOG_ERROR("cancel syscall failed");
+        LOG_ERROR("cancel syscall failed: %s", strerror(errno));
         return false;
     }
 
 #else
     if (ptrace(PTRACE_POKEUSER, mPid, offsetof(CRegister, REG_SYSCALL), (void *)-1) < 0) {
-        LOG_ERROR("cancel syscall failed");
+        LOG_ERROR("cancel syscall failed: %s", strerror(errno));
         return false;
     }
 #endif
