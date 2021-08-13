@@ -90,7 +90,7 @@ bool CPTInject::attach() {
     if (!getRegister(mRegister))
         return false;
 
-    LOG_INFO("attach success");
+    LOG_INFO("attach process success");
 
     mAttached = true;
     return true;
@@ -107,7 +107,7 @@ bool CPTInject::detach() {
         }
     }
 
-    LOG_INFO("detach success");
+    LOG_INFO("detach process success");
 
     mAttached = false;
     return true;
@@ -132,12 +132,12 @@ bool CPTInject::run(const char *name, void *base, void *stack, void *arg, int &s
         return false;
     }
 
-    LOG_INFO("backup memory");
+    LOG_INFO("backup memory: 0x%lx", length);
 
     if (!readMemory(memoryBase, memoryBackup.get(), length))
         return false;
 
-    LOG_INFO("inject code at: %p entry: 0x%lx size: 0x%lx", memoryBase, entry, length);
+    LOG_INFO("jump entry: %p[0x%lx]", memoryBase, entry);
 
     if (!writeMemory((char *)memoryBase + shellcode.mOffset, (void *)shellcode.mBuffer, shellcode.mLength))
         return false;
@@ -245,12 +245,12 @@ bool CPTInject::call(const char *name, void *base, void *stack, void *arg, void 
         return false;
     }
 
-    LOG_INFO("backup memory");
+    LOG_INFO("backup memory: 0x%lx", length);
 
     if (!readMemory(memoryBase, memoryBackup.get(), length))
         return false;
 
-    LOG_INFO("inject code at: %p entry: 0x%lx size: 0x%lx", memoryBase, entry, length);
+    LOG_INFO("jump entry: %p[0x%lx]", memoryBase, entry);
 
     if (!writeMemory((char *)memoryBase + shellcode.mOffset, (void *)shellcode.mBuffer, shellcode.mLength))
         return false;
