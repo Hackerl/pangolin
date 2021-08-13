@@ -175,7 +175,7 @@ bool CPTInject::run(const char *name, void *base, void *stack, void *arg, int &s
         }
 
         if (WIFSIGNALED(s)) {
-            LOG_WARNING("process terminated: %d", WTERMSIG(s));
+            LOG_WARNING("process terminated: %s", strsignal(WTERMSIG(s)));
 
             mTerminated = true;
             return false;
@@ -288,7 +288,7 @@ bool CPTInject::call(const char *name, void *base, void *stack, void *arg, void 
         }
 
         if (WIFSIGNALED(s)) {
-            LOG_WARNING("process terminated: %d", WTERMSIG(s));
+            LOG_WARNING("process terminated: %s", strsignal(WTERMSIG(s)));
 
             mTerminated = true;
             return false;
