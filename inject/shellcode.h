@@ -13,7 +13,6 @@ public:
 
 public:
     unsigned long mOffset;
-    unsigned long mEntry;
     unsigned long mLength;
 
 private:

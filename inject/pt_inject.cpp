@@ -121,7 +121,6 @@ bool CPTInject::run(const char *name, void *base, void *stack, void *arg, int &s
         return false;
     }
 
-    unsigned long entry = shellcode.mOffset + shellcode.mEntry;
     unsigned long length = shellcode.mOffset + shellcode.mLength;
 
     void *memoryBase = base;
@@ -137,14 +136,14 @@ bool CPTInject::run(const char *name, void *base, void *stack, void *arg, int &s
     if (!readMemory(memoryBase, memoryBackup.get(), length))
         return false;
 
-    LOG_INFO("jump entry: %p[0x%lx]", memoryBase, entry);
+    LOG_INFO("jump entry: %p[0x%lx]", memoryBase, shellcode.mOffset);
 
     if (!writeMemory((char *)memoryBase + shellcode.mOffset, (void *)shellcode.mBuffer, shellcode.mLength))
         return false;
 
     CRegister modifyRegs = mRegister;
 
-    modifyRegs.REG_PC = (unsigned long)memoryBase + PC_OFFSET + entry;
+    modifyRegs.REG_PC = (unsigned long)memoryBase + PC_OFFSET + shellcode.mOffset;
     modifyRegs.REG_STACK = stack ? (unsigned long)stack : mRegister.REG_STACK;
 
 #ifdef __i386__
@@ -234,7 +233,6 @@ bool CPTInject::call(const char *name, void *base, void *stack, void *arg, void 
         return false;
     }
 
-    unsigned long entry = shellcode.mOffset + shellcode.mEntry;
     unsigned long length = shellcode.mOffset + shellcode.mLength;
 
     void *memoryBase = base;
@@ -250,14 +248,14 @@ bool CPTInject::call(const char *name, void *base, void *stack, void *arg, void 
     if (!readMemory(memoryBase, memoryBackup.get(), length))
         return false;
 
-    LOG_INFO("jump entry: %p[0x%lx]", memoryBase, entry);
+    LOG_INFO("jump entry: %p[0x%lx]", memoryBase, shellcode.mOffset);
 
     if (!writeMemory((char *)memoryBase + shellcode.mOffset, (void *)shellcode.mBuffer, shellcode.mLength))
         return false;
 
     CRegister modifyRegs = mRegister;
 
-    modifyRegs.REG_PC = (unsigned long)memoryBase + PC_OFFSET + entry;
+    modifyRegs.REG_PC = (unsigned long)memoryBase + PC_OFFSET + shellcode.mOffset;
     modifyRegs.REG_STACK = stack ? (unsigned long)stack : mRegister.REG_STACK;
 
 #ifdef __i386__
