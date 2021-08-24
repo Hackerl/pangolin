@@ -6,7 +6,7 @@
 #include <z_syscall.h>
 #include <z_std.h>
 
-#define STACK_SIZE 0x20000
+#define STACK_SIZE 0x21000
 
 void loader_main(void *ptr) {
     struct CPayload *payload = (struct CPayload *)ptr;

@@ -3,7 +3,7 @@
 #include <common/log.h>
 #include <loader/payload.h>
 
-constexpr auto PANGOLIN_WORKSPACE_SIZE = 0x10000;
+constexpr auto WORKSPACE_SIZE = 0x21000;
 
 constexpr auto SPREAD = "spread";
 constexpr auto LOADER = "loader";
@@ -43,7 +43,7 @@ int main(int argc, char ** argv) {
 
     void *result = nullptr;
 
-    if (!ptInject.call(SPREAD, nullptr, nullptr, (void *)PANGOLIN_WORKSPACE_SIZE, &result)) {
+    if (!ptInject.call(SPREAD, nullptr, nullptr, (void *)WORKSPACE_SIZE, &result)) {
         LOG_ERROR("spread shellcode execute failed");
         return -1;
     }
@@ -79,14 +79,14 @@ int main(int argc, char ** argv) {
 
     unsigned long pageSize = sysconf(_SC_PAGESIZE);
     unsigned long base = ((unsigned long)result + sizeof(payload) + pageSize - 1) & ~(pageSize - 1);
-    unsigned long stack = (unsigned long)result + PANGOLIN_WORKSPACE_SIZE;
+    unsigned long stack = (unsigned long)result + WORKSPACE_SIZE;
 
     if (!ptInject.run(LOADER, (void *)base, (void *)stack, result, status)) {
         LOG_ERROR("loader shellcode execute failed");
         return -1;
     }
 
-    LOG_INFO("free workspace: %p", result);
+    LOG_INFO("free workspace");
 
     if (!ptInject.call(SHRINK, nullptr, nullptr, result, nullptr)) {
         LOG_ERROR("shrink shellcode execute failed");

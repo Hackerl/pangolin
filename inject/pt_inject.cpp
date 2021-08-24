@@ -131,7 +131,7 @@ bool CPTInject::run(const char *name, void *base, void *stack, void *arg, int &s
         return false;
     }
 
-    LOG_INFO("backup memory: 0x%lx", length);
+    LOG_INFO("backup memory: %p[0x%lx]", memoryBase, length);
 
     if (!readMemory(memoryBase, memoryBackup.get(), length))
         return false;
@@ -243,7 +243,7 @@ bool CPTInject::call(const char *name, void *base, void *stack, void *arg, void 
         return false;
     }
 
-    LOG_INFO("backup memory: 0x%lx", length);
+    LOG_INFO("backup memory: %p[0x%lx]", memoryBase, length);
 
     if (!readMemory(memoryBase, memoryBackup.get(), length))
         return false;
