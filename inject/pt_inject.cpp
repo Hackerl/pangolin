@@ -122,28 +122,26 @@ bool CPTInject::run(const char *name, void *base, void *stack, void *arg, int &s
     }
 
     unsigned long length = shellcode.mOffset + shellcode.mLength;
-
-    void *memoryBase = base;
     std::unique_ptr<unsigned char> memoryBackup(new unsigned char[length]());
 
-    if (!memoryBase && !searchExecZone(&memoryBase)) {
+    if (!base && !searchExecZone(&base)) {
         LOG_ERROR("search execute zone failed");
         return false;
     }
 
-    LOG_INFO("backup memory: %p[0x%lx]", memoryBase, length);
+    LOG_INFO("backup memory: %p[0x%lx]", base, length);
 
-    if (!readMemory(memoryBase, memoryBackup.get(), length))
+    if (!readMemory(base, memoryBackup.get(), length))
         return false;
 
-    LOG_INFO("jump entry: %p[0x%lx]", memoryBase, shellcode.mOffset);
+    LOG_INFO("jump entry: %p[0x%lx]", base, shellcode.mOffset);
 
-    if (!writeMemory((char *)memoryBase + shellcode.mOffset, (void *)shellcode.mBuffer, shellcode.mLength))
+    if (!writeMemory((char *)base + shellcode.mOffset, (void *)shellcode.mBuffer, shellcode.mLength))
         return false;
 
     CRegister modifyRegs = mRegister;
 
-    modifyRegs.REG_PC = (unsigned long)memoryBase + PC_OFFSET + shellcode.mOffset;
+    modifyRegs.REG_PC = (unsigned long)base + PC_OFFSET + shellcode.mOffset;
     modifyRegs.REG_STACK = stack ? (unsigned long)stack : mRegister.REG_STACK;
 
 #ifdef __i386__
@@ -175,7 +173,6 @@ bool CPTInject::run(const char *name, void *base, void *stack, void *arg, int &s
 
         if (WIFSIGNALED(s)) {
             LOG_WARNING("process terminated: %s", strsignal(WTERMSIG(s)));
-
             mTerminated = true;
             return false;
         }
@@ -219,7 +216,7 @@ bool CPTInject::run(const char *name, void *base, void *stack, void *arg, int &s
 
     LOG_INFO("restore memory");
 
-    if (!writeMemory(memoryBase, memoryBackup.get(), length))
+    if (!writeMemory(base, memoryBackup.get(), length))
         return false;
 
     return sig != SIGSEGV;
@@ -234,28 +231,26 @@ bool CPTInject::call(const char *name, void *base, void *stack, void *arg, void 
     }
 
     unsigned long length = shellcode.mOffset + shellcode.mLength;
-
-    void *memoryBase = base;
     std::unique_ptr<unsigned char> memoryBackup(new unsigned char[length]());
 
-    if (!memoryBase && !searchExecZone(&memoryBase)) {
+    if (!base && !searchExecZone(&base)) {
         LOG_ERROR("search execute zone failed");
         return false;
     }
 
-    LOG_INFO("backup memory: %p[0x%lx]", memoryBase, length);
+    LOG_INFO("backup memory: %p[0x%lx]", base, length);
 
-    if (!readMemory(memoryBase, memoryBackup.get(), length))
+    if (!readMemory(base, memoryBackup.get(), length))
         return false;
 
-    LOG_INFO("jump entry: %p[0x%lx]", memoryBase, shellcode.mOffset);
+    LOG_INFO("jump entry: %p[0x%lx]", base, shellcode.mOffset);
 
-    if (!writeMemory((char *)memoryBase + shellcode.mOffset, (void *)shellcode.mBuffer, shellcode.mLength))
+    if (!writeMemory((char *)base + shellcode.mOffset, (void *)shellcode.mBuffer, shellcode.mLength))
         return false;
 
     CRegister modifyRegs = mRegister;
 
-    modifyRegs.REG_PC = (unsigned long)memoryBase + PC_OFFSET + shellcode.mOffset;
+    modifyRegs.REG_PC = (unsigned long)base + PC_OFFSET + shellcode.mOffset;
     modifyRegs.REG_STACK = stack ? (unsigned long)stack : mRegister.REG_STACK;
 
 #ifdef __i386__
@@ -287,38 +282,38 @@ bool CPTInject::call(const char *name, void *base, void *stack, void *arg, void 
 
         if (WIFSIGNALED(s)) {
             LOG_WARNING("process terminated: %s", strsignal(WTERMSIG(s)));
-
             mTerminated = true;
             return false;
         }
 
+        CRegister currentRegs = {};
+
+        if (!getRegister(currentRegs))
+            return false;
+
         sig = WSTOPSIG(s);
 
-        if (sig == SIGTRAP || sig == SIGSEGV)
+        if (sig == SIGSEGV) {
+            LOG_ERROR("segmentation fault: 0x%lx", currentRegs.REG_PC);
             break;
+        }
+
+        if (sig == SIGTRAP) {
+            if (result)
+                *result = (void *)currentRegs.REG_RET;
+
+            break;
+        }
 
         LOG_INFO("receive signal: %s", strsignal(sig));
     }
 
     LOG_INFO("restore memory");
 
-    if (!writeMemory(memoryBase, memoryBackup.get(), length))
+    if (!writeMemory(base, memoryBackup.get(), length))
         return false;
 
-    CRegister currentRegs = {};
-
-    if (!getRegister(currentRegs))
-        return false;
-
-    if (sig == SIGSEGV) {
-        LOG_ERROR("segmentation fault: 0x%lx", currentRegs.REG_PC);
-        return false;
-    }
-
-    if (result)
-        *result = (void *)currentRegs.REG_RET;
-
-    return true;
+    return sig != SIGSEGV;
 }
 
 bool CPTInject::getRegister(CRegister &regs) const {
@@ -351,35 +346,23 @@ bool CPTInject::setRegister(CRegister regs) const {
 
 bool CPTInject::readMemory(void *address, void *buffer, unsigned long length) const {
     if (length < sizeof(long)) {
-        LOG_ERROR("read memory length need greater than size of long");
+        LOG_ERROR("buffer length need greater than size of long");
         return false;
     }
 
-    unsigned long n = 0;
-    unsigned long piece = length % sizeof(long);
+    for (unsigned long i = 0; i < length; i += sizeof(long)) {
+        if (length - i < sizeof(long)) {
+            i = length - sizeof(long);
+        }
 
-    if (piece) {
-        long r = ptrace(PTRACE_PEEKTEXT, mPid, (unsigned char *)address + length - sizeof(long), nullptr);
+        long r = ptrace(PTRACE_PEEKTEXT, mPid, (unsigned char *)address + i, nullptr);
 
         if (r == -1 && errno != 0) {
             LOG_ERROR("read memory failed: %s", strerror(errno));
             return false;
         }
 
-        *(long *)((unsigned char *)buffer + length - sizeof(long)) = r;
-        length -= piece;
-    }
-
-    while (n < length) {
-        long r = ptrace(PTRACE_PEEKTEXT, mPid, (unsigned char *)address + n, nullptr);
-
-        if (r == -1 && errno != 0) {
-            LOG_ERROR("read memory failed: %s", strerror(errno));
-            return false;
-        }
-
-        *(long *)((unsigned char *)buffer + n) = r;
-        n += sizeof(long);
+        *(long *)((unsigned char *)buffer + i) = r;
     }
 
     return true;
@@ -387,29 +370,19 @@ bool CPTInject::readMemory(void *address, void *buffer, unsigned long length) co
 
 bool CPTInject::writeMemory(void *address, void *buffer, unsigned long length) const {
     if (length < sizeof(long)) {
-        LOG_ERROR("write memory length need greater than size of long");
+        LOG_ERROR("buffer length need greater than size of long");
         return false;
     }
 
-    unsigned long n = 0;
-    unsigned long piece = length % sizeof(long);
+    for (unsigned long i = 0; i < length; i += sizeof(long)) {
+        if (length - i < sizeof(long)) {
+            i = length - sizeof(long);
+        }
 
-    if (piece) {
-        if (ptrace(PTRACE_POKETEXT, mPid, (unsigned char *)address + length - sizeof(long), *(long *)((unsigned char *)buffer + length - sizeof(long))) < 0) {
+        if (ptrace(PTRACE_POKETEXT, mPid, (unsigned char *)address + i, *(long *)((unsigned char *)buffer + i)) < 0) {
             LOG_ERROR("write memory failed: %s", strerror(errno));
             return false;
         }
-
-        length -= piece;
-    }
-
-    while (n < length) {
-        if (ptrace(PTRACE_POKETEXT, mPid, (unsigned char *)address + n, *(long *)((unsigned char *)buffer + n)) < 0) {
-            LOG_ERROR("write memory failed: %s", strerror(errno));
-            return false;
-        }
-
-        n += sizeof(long);
     }
 
     return true;
@@ -471,7 +444,7 @@ bool CPTInject::searchExecZone(void **base) const {
 bool CPTInject::init() {
     std::string path = CPath::join("/proc", std::to_string(mPid), "task");
 
-    for (const auto& i: CFileWalker(path)) {
+    for (const auto &i : CFileWalker(path)) {
         int thread = 0;
 
         if (!CStringHelper::toNumber(i.filename, thread)) {
