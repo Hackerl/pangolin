@@ -66,16 +66,16 @@ unsigned long load_segments(void *buffer) {
 
     int dyn = ehdr->e_type == ET_DYN;
 
-    void *base = z_mmap(
+    void *base = Z_RESULT_V(z_mmap(
             dyn ? NULL : (void *)minVA,
             maxVA - minVA,
             PROT_NONE,
             (dyn ? 0 : MAP_FIXED) | MAP_PRIVATE | MAP_ANONYMOUS,
             -1,
-            0);
+            0));
 
     if (base == MAP_FAILED) {
-        LOG("mmap failed: %d", z_errno);
+        LOG("mmap failed");
         return -1;
     }
 
@@ -93,13 +93,13 @@ unsigned long load_segments(void *buffer) {
 
         LOG("segment: 0x%lx[0x%lx]", start, size);
 
-        void *p = z_mmap(
+        void *p = Z_RESULT_V(z_mmap(
                 (void *)start,
                 size,
                 PROT_WRITE,
                 MAP_FIXED | MAP_ANONYMOUS | MAP_PRIVATE,
                 -1,
-                0);
+                0));
 
         if (p == MAP_FAILED) {
             z_munmap(base, maxVA - minVA);
@@ -111,7 +111,7 @@ unsigned long load_segments(void *buffer) {
         unsigned int flags = i->p_flags;
         int protection = (flags & PF_R ? PROT_READ : 0) | (flags & PF_W ? PROT_WRITE : 0) | (flags & PF_X ? PROT_EXEC : 0);
 
-        if (z_mprotect(p, size, protection) == -1) {
+        if (Z_RESULT_V(z_mprotect(p, size, protection)) == -1) {
             z_munmap(base, maxVA - minVA);
             return -1;
         }
@@ -147,7 +147,7 @@ int elf_map(const char *path, struct CLoaderContext *ctx) {
     struct STAT sb;
     z_memset(&sb, 0, sizeof(sb));
 
-    if (Z_STAT(path, &sb) < 0) {
+    if (Z_RESULT_V(Z_STAT(path, &sb)) < 0) {
         LOG("stat file failed: %s", path);
         return -1;
     }
@@ -157,21 +157,21 @@ int elf_map(const char *path, struct CLoaderContext *ctx) {
         return -1;
     }
 
-    int fd = z_open(path, O_RDONLY, 0);
+    int fd = Z_RESULT_V(z_open(path, O_RDONLY, 0));
 
     if (fd < 0) {
-        LOG("open failed: %s %d", path, z_errno);
+        LOG("open failed: %s", path);
         return -1;
     }
 
-    long size = z_lseek(fd, 0, SEEK_END);
+    long size = Z_RESULT_V(z_lseek(fd, 0, SEEK_END));
 
     if (size < 0) {
         z_close(fd);
         return -1;
     }
 
-    void *buffer = z_mmap(NULL, (size_t)size, PROT_READ, MAP_PRIVATE, fd, 0);
+    void *buffer = Z_RESULT_V(z_mmap(NULL, (size_t)size, PROT_READ, MAP_PRIVATE, fd, 0));
 
     if (buffer == MAP_FAILED) {
         z_close(fd);
@@ -274,17 +274,17 @@ int elf_loader(struct CPayload *payload) {
         return -1;
     }
 
-    int fd = z_open(AV_PATH, O_RDONLY, 0);
+    int fd = Z_RESULT_V(z_open(AV_PATH, O_RDONLY, 0));
 
     if (fd < 0) {
-        LOG("open failed: %d", z_errno);
+        LOG("open failed: %s", AV_PATH);
         return -1;
     }
 
     char av[1024];
     z_memset(av, 0, sizeof(av));
 
-    ssize_t length = z_read(fd, av, sizeof(av));
+    ssize_t length = Z_RESULT_V(z_read(fd, av, sizeof(av)));
 
     if (length == -1) {
         z_close(fd);
