@@ -1,7 +1,7 @@
 CFLAGS 	+= -D_GNU_SOURCE -std=gnu99
 CFLAGS 	+= -I c-runtime/include -I c-runtime/printf
 CFLAGS  += -shared -fvisibility=hidden
-CFLAGS  += -Os -fdata-sections -ffunction-sections
+CFLAGS  += -Os -fdata-sections -ffunction-sections -fcf-protection=none
 CFLAGS 	+= -fno-common -fno-stack-protector -fomit-frame-pointer -fno-exceptions -fno-asynchronous-unwind-tables -fno-unwind-tables
 LDFLAGS += -T linker.ld -Wl,--gc-sections -Wl,--no-undefined
 PORTABLE = -fPIC -fno-builtin
