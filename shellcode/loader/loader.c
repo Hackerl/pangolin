@@ -68,7 +68,7 @@ void loader_main(void *ptr) {
 #endif
 }
 
-void __attribute__ ((visibility ("default"))) entry() {
+void entry() {
 #if __i386__ || __x86_64__
     asm volatile("nop; nop; call loader_main; int3;");
 #elif __arm__

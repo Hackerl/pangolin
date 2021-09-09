@@ -1,6 +1,6 @@
 #ifndef PANGOLIN_SPREAD_H
 #define PANGOLIN_SPREAD_H
 
-void __attribute__ ((section (".entry"))) entry();
+void __attribute__ ((naked, section (".entry"), visibility ("default"))) entry();
 
 #endif //PANGOLIN_SPREAD_H
