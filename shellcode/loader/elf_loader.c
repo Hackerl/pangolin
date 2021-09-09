@@ -351,8 +351,6 @@ int elf_loader(struct CPayload *payload) {
     asm volatile("mov %%sp, %0; mov %%r0, #0; bx %[func];" :: "r"(stack), [func] "r"(entry));
 #elif __aarch64__
     asm volatile("mov sp, %[stack]; mov w0, #0; br %[func];" :: [stack] "r"(stack), [func] "r"(entry));
-#else
-#error "unknown arch"
 #endif
 
     return 0;

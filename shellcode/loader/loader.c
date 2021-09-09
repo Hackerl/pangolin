@@ -1,4 +1,3 @@
-#include "loader.h"
 #include "payload.h"
 #include "elf_loader.h"
 #include <z_log.h>
@@ -8,7 +7,7 @@
 
 #define STACK_SIZE 0x21000
 
-void loader_main(void *ptr) {
+void main(void *ptr) {
     struct CPayload *payload = (struct CPayload *)ptr;
 
     if (!payload->daemon) {
@@ -63,19 +62,43 @@ void loader_main(void *ptr) {
             ::
             [stack] "r"(stack + STACK_SIZE),
             [argument] "r"(stack));
-#else
-#error "unknown arch"
 #endif
 }
 
-void entry() {
 #if __i386__ || __x86_64__
-    asm volatile("nop; nop; call loader_main; int3;");
+
+__asm__ (
+".section .entry\n"
+".global entry\n"
+"entry:\n"
+"    nop\n"
+"    nop\n"
+"    call main\n"
+"    int3"
+);
+
 #elif __arm__
-    asm volatile("nop; bl loader_main; .inst 0xe7f001f0;");
+
+__asm__ (
+".section .entry\n"
+".global entry\n"
+"entry:\n"
+"    nop\n"
+"    bl main\n"
+"    .inst 0xe7f001f0"
+);
+
 #elif __aarch64__
-    asm volatile("nop; bl loader_main; .inst 0xd4200000;");
+
+__asm__ (
+".section .entry\n"
+".global entry\n"
+"entry:\n"
+"    nop\n"
+"    bl main\n"
+"    .inst 0xd4200000"
+);
+
 #else
 #error "unknown arch"
 #endif
-}
