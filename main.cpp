@@ -61,12 +61,12 @@ int main(int argc, char ** argv) {
     std::string combinedArg = CStringHelper::join(arguments, PAYLOAD_DELIMITER);
     std::string combinedEnv = CStringHelper::join(environs, PAYLOAD_DELIMITER);
 
-    if (combinedArg.size() >= sizeof(CPayload::argv) || combinedEnv.size() >= sizeof(CPayload::env)) {
+    if (combinedArg.size() >= sizeof(loader_payload_t::argv) || combinedEnv.size() >= sizeof(loader_payload_t::env)) {
         LOG_ERROR("payload size limit");
         return -1;
     }
 
-    CPayload payload = {};
+    loader_payload_t payload = {};
 
     payload.daemon = parse.exist("daemon");
 

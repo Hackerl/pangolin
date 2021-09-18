@@ -6,10 +6,10 @@
 #define PAYLOAD_MAX_ARG 256
 #define PAYLOAD_MAX_ENV 256
 
-struct CPayload {
+typedef struct {
     int daemon;
     char argv[1024];
     char env[1024];
-};
+} loader_payload_t;
 
 #endif //PANGOLIN_PAYLOAD_H

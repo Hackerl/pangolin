@@ -6,7 +6,7 @@ constexpr auto EXTENSION = "so";
 
 bool CShellcode::load(const std::string &shellcode) {
     std::string filename = CStringHelper::format("%s%s.%s", PREFIX, shellcode.c_str(), EXTENSION);
-    std::string path = CPath::join(CPath::getAPPDir(), filename);
+    std::string path = CPath::join(CPath::getApplicationDirectory(), filename);
 
     if (!mReader.load(path)) {
         LOG_ERROR("open shellcode failed: %s", shellcode.c_str());

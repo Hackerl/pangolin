@@ -8,7 +8,7 @@
 #define STACK_SIZE 0x21000
 
 void main(void *ptr) {
-    struct CPayload *payload = (struct CPayload *)ptr;
+    loader_payload_t *payload = (loader_payload_t *)ptr;
 
     if (!payload->daemon) {
         int status = elf_loader(payload);
@@ -22,7 +22,7 @@ void main(void *ptr) {
         z_exit(-1);
     }
 
-    z_memcpy(stack, payload, sizeof(struct CPayload));
+    z_memcpy(stack, payload, sizeof(loader_payload_t));
 
 #ifdef __i386__
     asm volatile(

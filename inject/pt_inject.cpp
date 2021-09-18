@@ -430,7 +430,7 @@ bool CPTInject::searchExecZone(void **base) const {
             processMaps.begin(),
             processMaps.end(),
             [](const auto& m) {
-                return m.flags == "r-xp" || m.flags == "rwxp";
+                return m.permissions == "r-xp" || m.permissions == "rwxp";
             });
 
     if (it == processMaps.end())

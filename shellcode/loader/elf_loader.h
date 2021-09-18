@@ -3,17 +3,23 @@
 
 #include "payload.h"
 
-struct CLoaderContext {
+typedef struct {
     unsigned long base;
     unsigned long entry;
     unsigned long header;
     unsigned long header_num;
     unsigned long header_size;
-};
+} elf_context_t;
 
-unsigned long load_segments(void *buffer);
+typedef struct {
+    unsigned long base;
+    unsigned long minVA;
+    unsigned long maxVA;
+} elf_image_t;
 
-int elf_map(const char *path, struct CLoaderContext *ctx);
-int elf_loader(struct CPayload *payload);
+int load_segments(void *buffer, elf_image_t *image);
+
+int elf_map(const char *path, elf_context_t *ctx);
+int elf_loader(loader_payload_t *payload);
 
 #endif //PANGOLIN_ELF_LOADER_H

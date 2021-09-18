@@ -43,7 +43,7 @@
 #endif
 
 
-unsigned long load_segments(void *buffer) {
+int load_segments(void *buffer, elf_image_t *image) {
     Elf_Ehdr *ehdr = buffer;
     Elf_Phdr *phdr = buffer + ehdr->e_phoff;
 
@@ -88,7 +88,7 @@ unsigned long load_segments(void *buffer) {
             continue;
 
         unsigned long offset = i->p_vaddr & (PAGE_SIZE - 1);
-        unsigned long start = (dyn ? (unsigned long)base : 0) + TRUNC_PG(i->p_vaddr);
+        unsigned long start = (unsigned long)base + TRUNC_PG(i->p_vaddr) - minVA;
         unsigned long size = ROUND_PG(i->p_memsz + offset);
 
         LOG("segment: 0x%lx[0x%lx]", start, size);
@@ -117,7 +117,11 @@ unsigned long load_segments(void *buffer) {
         }
     }
 
-    return (unsigned long)base;
+    image->base = (unsigned long)base;
+    image->minVA = minVA;
+    image->maxVA = maxVA;
+
+    return 0;
 }
 
 int elf_check(Elf_Ehdr *ehdr) {
@@ -143,7 +147,7 @@ int elf_check(Elf_Ehdr *ehdr) {
     return 0;
 }
 
-int elf_map(const char *path, struct CLoaderContext *ctx) {
+int elf_map(const char *path, elf_context_t *ctx) {
     struct STAT sb;
     z_memset(&sb, 0, sizeof(sb));
 
@@ -205,16 +209,16 @@ int elf_map(const char *path, struct CLoaderContext *ctx) {
 
     LOG("mapping %s", path);
 
-    unsigned long base = load_segments(buffer);
+    elf_image_t image = {};
 
-    if (base == -1) {
+    if (load_segments(buffer, &image)) {
         z_munmap(buffer, (size_t)size);
         return -1;
     }
 
-    ctx->base = base;
-    ctx->entry = ehdr->e_entry + (ehdr->e_type == ET_DYN ? base : 0);
-    ctx->header = base + ehdr->e_phoff;
+    ctx->base = image.base;
+    ctx->entry = image.base + ehdr->e_entry - image.minVA;
+    ctx->header = image.base + ehdr->e_phoff;
     ctx->header_num = ehdr->e_phnum;
     ctx->header_size = ehdr->e_phentsize;
 
@@ -223,7 +227,7 @@ int elf_map(const char *path, struct CLoaderContext *ctx) {
     return 0;
 }
 
-int elf_loader(struct CPayload *payload) {
+int elf_loader(loader_payload_t *payload) {
     int argc = 0;
 
     char *argv[PAYLOAD_MAX_ARG];
@@ -266,7 +270,7 @@ int elf_loader(struct CPayload *payload) {
 
     const char *path = argv[0];
 
-    struct CLoaderContext context[2];
+    elf_context_t context[2];
     z_memset(context, 0, sizeof(context));
 
     if (elf_map(path, context) < 0) {
