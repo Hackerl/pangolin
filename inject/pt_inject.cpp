@@ -196,21 +196,12 @@ bool CPTInject::run(const char *name, void *base, void *stack, void *arg, int &s
 
         sig = 0;
 
-#if __i386__ || __x86_64__
-        if (currentRegs.REG_SYSCALL == -1) {
-            LOG_INFO("exit status: %d", status);
-            break;
-        }
-#endif
-
         if (currentRegs.REG_SYSCALL == SYS_exit || currentRegs.REG_SYSCALL == SYS_exit_group) {
-            status = (int)currentRegs.REG_SYSCALL_ARG;
             cancelSyscall();
+            status = (int)currentRegs.REG_SYSCALL_ARG;
 
-#if __arm__ || __aarch64__
             LOG_INFO("exit status: %d", status);
             break;
-#endif
         }
     }
 
