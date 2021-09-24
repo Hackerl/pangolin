@@ -16,5 +16,5 @@ include(cmake/ELFIO.cmake)
 add_executable(target sample/target.cpp)
 add_executable(inject sample/inject.cpp)
 
-add_executable(pangolin main.cpp inject/pt_inject.cpp inject/shellcode.cpp)
+add_executable(pangolin main.cpp ptrace/injector.cpp ptrace/shellcode.cpp)
 target_link_libraries(pangolin elfio $<$<BOOL:${STATIC_BUILD}>:-static-pie>)

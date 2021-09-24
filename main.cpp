@@ -1,13 +1,9 @@
-#include "inject/pt_inject.h"
+#include "ptrace/injector.h"
 #include <common/cmdline.h>
 #include <common/log.h>
 #include <loader/payload.h>
 
-constexpr auto WORKSPACE_SIZE = 0x21000;
-
-constexpr auto SPREAD = "spread";
-constexpr auto LOADER = "loader";
-constexpr auto SHRINK = "shrink";
+constexpr auto ALLOC_SIZE = 0x21000;
 
 int main(int argc, char ** argv) {
     cmdline::parser parse;
@@ -29,21 +25,21 @@ int main(int argc, char ** argv) {
 
     LOG_INFO("inject '%s' to process %d", commandline.c_str(), pid);
 
-    CPTInject ptInject(pid);
+    CInjector injector(pid);
 
-    if (!ptInject.init()) {
+    if (!injector.init()) {
         LOG_ERROR("injector init failed");
         return -1;
     }
 
-    if (!ptInject.attach()) {
+    if (!injector.attach()) {
         LOG_ERROR("injector attach failed");
         return -1;
     }
 
     void *result = nullptr;
 
-    if (!ptInject.call(SPREAD, nullptr, nullptr, (void *)WORKSPACE_SIZE, &result)) {
+    if (!injector.call("alloc", nullptr, nullptr, nullptr, &result)) {
         LOG_ERROR("spread shellcode execute failed");
         return -1;
     }
@@ -73,27 +69,27 @@ int main(int argc, char ** argv) {
     memcpy(payload.argv, combinedArg.data(), combinedArg.size());
     memcpy(payload.env, combinedEnv.data(), combinedEnv.size());
 
-    ptInject.writeMemory(result, &payload, sizeof(payload));
+    injector.writeMemory(result, &payload, sizeof(payload));
 
     int status = 0;
 
     unsigned long pageSize = sysconf(_SC_PAGESIZE);
     unsigned long base = ((unsigned long)result + sizeof(payload) + pageSize - 1) & ~(pageSize - 1);
-    unsigned long stack = (unsigned long)result + WORKSPACE_SIZE;
+    unsigned long stack = (unsigned long)result + ALLOC_SIZE;
 
-    if (!ptInject.run(LOADER, (void *)base, (void *)stack, result, status)) {
+    if (!injector.run("loader", (void *)base, (void *)stack, result, status)) {
         LOG_ERROR("loader shellcode execute failed");
         return -1;
     }
 
     LOG_INFO("free workspace");
 
-    if (!ptInject.call(SHRINK, nullptr, nullptr, result, nullptr)) {
+    if (!injector.call("free", nullptr, nullptr, result, nullptr)) {
         LOG_ERROR("shrink shellcode execute failed");
         return -1;
     }
 
-    ptInject.detach();
+    injector.detach();
 
     return status;
 }

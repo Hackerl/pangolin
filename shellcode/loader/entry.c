@@ -68,34 +68,34 @@ void main(void *ptr) {
 #if __i386__ || __x86_64__
 
 __asm__ (
-".section .entry\n"
-".global entry\n"
-"entry:\n"
-"    nop\n"
-"    nop\n"
-"    call main\n"
+".section .entry;"
+".global entry;"
+"entry:"
+"    nop;"
+"    nop;"
+"    call main;"
 "    int3"
 );
 
 #elif __arm__
 
 __asm__ (
-".section .entry\n"
-".global entry\n"
-"entry:\n"
-"    nop\n"
-"    bl main\n"
+".section .entry;"
+".global entry;"
+"entry:"
+"    nop;"
+"    bl main;"
 "    .inst 0xe7f001f0"
 );
 
 #elif __aarch64__
 
 __asm__ (
-".section .entry\n"
-".global entry\n"
-"entry:\n"
-"    nop\n"
-"    bl main\n"
+".section .entry;"
+".global entry;"
+"entry:"
+"    nop;"
+"    bl main;"
 "    .inst 0xd4200000"
 );
 

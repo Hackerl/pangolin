@@ -1,4 +1,4 @@
-#include "pt_inject.h"
+#include "injector.h"
 #include "shellcode.h"
 #include <cstddef>
 #include <sys/ptrace.h>
@@ -56,18 +56,18 @@
 #error "unknown arch"
 #endif
 
-CPTInject::CPTInject(int pid) {
+CInjector::CInjector(int pid) {
     mPid = pid;
     mAttached = false;
     mTerminated = false;
 }
 
-CPTInject::~CPTInject() {
+CInjector::~CInjector() {
     if (mAttached && !mTerminated)
         detach();
 }
 
-bool CPTInject::attach() {
+bool CInjector::attach() {
     for (const auto& t: mThreads){
         if (ptrace(PTRACE_ATTACH, t, nullptr, nullptr) < 0) {
             LOG_ERROR("attach thread %d failed: %s", t, strerror(errno));
@@ -96,7 +96,7 @@ bool CPTInject::attach() {
     return true;
 }
 
-bool CPTInject::detach() {
+bool CInjector::detach() {
     if (!setRegister(mRegister))
         return false;
 
@@ -113,7 +113,7 @@ bool CPTInject::detach() {
     return true;
 }
 
-bool CPTInject::run(const char *name, void *base, void *stack, void *arg, int &status) {
+bool CInjector::run(const char *name, void *base, void *stack, void *arg, int &status) {
     CShellcode shellcode;
 
     if (!shellcode.load(name)) {
@@ -213,7 +213,7 @@ bool CPTInject::run(const char *name, void *base, void *stack, void *arg, int &s
     return sig != SIGSEGV;
 }
 
-bool CPTInject::call(const char *name, void *base, void *stack, void *arg, void **result) {
+bool CInjector::call(const char *name, void *base, void *stack, void *arg, void **result) {
     CShellcode shellcode;
 
     if (!shellcode.load(name)) {
@@ -307,7 +307,7 @@ bool CPTInject::call(const char *name, void *base, void *stack, void *arg, void 
     return sig != SIGSEGV;
 }
 
-bool CPTInject::getRegister(CRegister &regs) const {
+bool CInjector::getRegister(CRegister &regs) const {
     iovec io = {};
 
     io.iov_base = &regs;
@@ -321,7 +321,7 @@ bool CPTInject::getRegister(CRegister &regs) const {
     return true;
 }
 
-bool CPTInject::setRegister(CRegister regs) const {
+bool CInjector::setRegister(CRegister regs) const {
     iovec io = {};
 
     io.iov_base = &regs;
@@ -335,7 +335,7 @@ bool CPTInject::setRegister(CRegister regs) const {
     return true;
 }
 
-bool CPTInject::readMemory(void *address, void *buffer, unsigned long length) const {
+bool CInjector::readMemory(void *address, void *buffer, unsigned long length) const {
     if (length < sizeof(long)) {
         LOG_ERROR("buffer length need greater than size of long");
         return false;
@@ -359,7 +359,7 @@ bool CPTInject::readMemory(void *address, void *buffer, unsigned long length) co
     return true;
 }
 
-bool CPTInject::writeMemory(void *address, void *buffer, unsigned long length) const {
+bool CInjector::writeMemory(void *address, void *buffer, unsigned long length) const {
     if (length < sizeof(long)) {
         LOG_ERROR("buffer length need greater than size of long");
         return false;
@@ -379,7 +379,7 @@ bool CPTInject::writeMemory(void *address, void *buffer, unsigned long length) c
     return true;
 }
 
-bool CPTInject::cancelSyscall() const {
+bool CInjector::cancelSyscall() const {
 #ifdef __arm__
     if (ptrace((__ptrace_request)PTRACE_SET_SYSCALL, mPid, nullptr, (void *)-1) < 0) {
         LOG_ERROR("cancel syscall failed: %s", strerror(errno));
@@ -409,7 +409,7 @@ bool CPTInject::cancelSyscall() const {
     return true;
 }
 
-bool CPTInject::searchExecZone(void **base) const {
+bool CInjector::searchExecZone(void **base) const {
     std::list<CProcessMap> processMaps;
 
     if (!CProcess::getProcessMaps(mPid, processMaps)) {
@@ -432,7 +432,7 @@ bool CPTInject::searchExecZone(void **base) const {
     return true;
 }
 
-bool CPTInject::init() {
+bool CInjector::init() {
     std::string path = CPath::join("/proc", std::to_string(mPid), "task");
 
     for (const auto &i : CFileWalker(path)) {

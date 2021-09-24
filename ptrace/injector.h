@@ -1,5 +1,5 @@
-#ifndef PANGOLIN_PT_INJECT_H
-#define PANGOLIN_PT_INJECT_H
+#ifndef PANGOLIN_INJECTOR_H
+#define PANGOLIN_INJECTOR_H
 
 #include <list>
 #include <sys/user.h>
@@ -10,10 +10,10 @@ typedef user_regs CRegister;
 typedef user_regs_struct CRegister;
 #endif
 
-class CPTInject {
+class CInjector {
 public:
-    explicit CPTInject(int pid);
-    ~CPTInject();
+    explicit CInjector(int pid);
+    ~CInjector();
 
 public:
     bool init();
@@ -51,4 +51,4 @@ private:
 };
 
 
-#endif //PANGOLIN_PT_INJECT_H
+#endif //PANGOLIN_INJECTOR_H
