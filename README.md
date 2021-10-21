@@ -22,8 +22,6 @@
     Inject ELF into remote process.
     <br />
     <br />
-    <a href="sample">View Demo</a>
-    ·
     <a href="https://github.com/Hackerl/pangolin/issues">Report Bug</a>
     ·
     <a href="https://github.com/Hackerl/pangolin/issues">Request Feature</a>

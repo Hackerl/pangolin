@@ -9,6 +9,12 @@ PORTABLE = -fPIC -fno-builtin
 MACHINE	= $(shell uname -m)
 
 all: $(MACHINE)
+	objcopy -O binary --only-section=.text liballoc.so alloc.sc
+	objcopy -O binary --only-section=.text libfree.so free.sc
+	objcopy -O binary --only-section=.text libloader.so loader.sc
+	xxd -i alloc.sc > alloc.h
+	xxd -i free.sc > free.h
+	xxd -i loader.sc > loader.h
 
 
 i386: x86
