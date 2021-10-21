@@ -1,4 +1,5 @@
 #include "tracee.h"
+#include <cstddef>
 #include <sys/ptrace.h>
 #include <cerrno>
 #include <cstring>

@@ -91,13 +91,13 @@ Pangolin is a program that allows to inject an ELF file into a remote process, b
    ```sh
    git submodule update --init --recursive
    ```
-3. Build injector
+3. Build shellcode
+   ```sh
+   make -C shellcode
+   ```
+4. Build injector
    ```sh
    mkdir -p build && cd build && cmake .. && make
-   ```
-4. Build shellcode
-   ```sh
-   make -C shellcode && mv shellcode/lib* bin
    ```
 
 
