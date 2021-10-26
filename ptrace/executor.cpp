@@ -26,8 +26,6 @@
 
 #elif __arm__
 
-#include <asm/ptrace.h>
-
 #define REG_PC              uregs[15]
 #define REG_ARG             uregs[0]
 #define REG_RET             uregs[0]

@@ -8,6 +8,10 @@
 #include <sys/uio.h>
 #include <elf.h>
 
+#ifdef __arm__
+#include <asm/ptrace.h>
+#endif
+
 CTracee::CTracee(pid_t pid) {
     mPID = pid;
 }
@@ -79,7 +83,7 @@ bool CTracee::readMemory(void *address, void *buffer, unsigned long length) cons
             return false;
         }
 
-        memcpy((char *)buffer + i, &r, std::min(length - i, sizeof(long)));
+        memcpy((char *)buffer + i, &r, std::min(size_t(length - i), sizeof(long)));
     }
 
     return true;
