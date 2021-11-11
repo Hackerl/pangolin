@@ -248,8 +248,10 @@ bool CExecutor::getExecBase(void **base) const {
     auto it = std::find_if(
             processMappings.begin(),
             processMappings.end(),
-            [](const auto& m) {
-                return m.permissions == "r-xp" || m.permissions == "rwxp";
+            [](const auto &m) {
+                return (m.permissions & zero::proc::READ_PERMISSION) &&
+                       (m.permissions & zero::proc::EXECUTE_PERMISSION) &&
+                       (m.permissions & zero::proc::PRIVATE_PERMISSION);
             });
 
     if (it == processMappings.end())

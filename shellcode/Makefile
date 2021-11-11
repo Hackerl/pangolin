@@ -3,6 +3,7 @@ CFLAGS 	+= -I c-runtime/include -I c-runtime/printf
 CFLAGS  += -shared -fvisibility=hidden
 CFLAGS  += -Os -fdata-sections -ffunction-sections
 CFLAGS 	+= -fno-common -fno-stack-protector -fomit-frame-pointer -fno-exceptions -fno-asynchronous-unwind-tables -fno-unwind-tables
+CFLAGS	+= -D DISABLE_CACHE
 LDFLAGS += -T linker.ld -Wl,--gc-sections -Wl,--no-undefined
 PORTABLE = -fPIC -fno-builtin
 
