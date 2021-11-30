@@ -8,7 +8,7 @@
 #define ALLOC_SIZE 0x21000
 
 void *main() {
-    return Z_RESULT_V(z_mmap(
+    void *ptr = Z_RESULT_V(z_mmap(
             NULL,
             ALLOC_SIZE,
             PROT_READ | PROT_EXEC | PROT_WRITE,
@@ -16,6 +16,11 @@ void *main() {
             -1,
             0
     ));
+
+    if (ptr == MAP_FAILED)
+        return NULL;
+
+    return ptr;
 }
 
 #if __i386__ || __x86_64__

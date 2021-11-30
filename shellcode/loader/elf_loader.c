@@ -42,6 +42,7 @@
 
 #endif
 
+void terminate(int status);
 
 int load_segments(void *buffer, elf_image_t *image) {
     Elf_Ehdr *ehdr = buffer;
@@ -250,8 +251,13 @@ int elf_loader(loader_payload_t *payload) {
         }
     }
 
+    int count = 0;
+    char t_env[64] = {};
+
+    snprintf(t_env, sizeof(t_env), "TERMINATE=%p", terminate);
+    env[count++] = t_env;
+
     if (z_strlen(payload->env)) {
-        int count = 0;
         env[count++] = payload->env;
 
         for (char *i = payload->env; *i && count < PAYLOAD_MAX_ENV; i++) {
@@ -262,10 +268,10 @@ int elf_loader(loader_payload_t *payload) {
         }
     }
 
-    for(int i = 0; i < argc; i++)
+    for (int i = 0; i < argc; i++)
         LOG("arg[%d] %s", i, argv[i]);
 
-    for(char **e = env; *e != NULL; e++)
+    for (char **e = env; *e != NULL; e++)
         LOG("env %s", *e);
 
     const char *path = argv[0];
