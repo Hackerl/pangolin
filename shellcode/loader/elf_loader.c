@@ -1,5 +1,4 @@
 #include "elf_loader.h"
-#include "quit.h"
 #include <z_std.h>
 #include <z_log.h>
 #include <z_syscall.h>

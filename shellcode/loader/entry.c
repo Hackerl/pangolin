@@ -1,5 +1,4 @@
 #include "payload.h"
-#include "quit.h"
 #include "elf_loader.h"
 #include <z_log.h>
 #include <z_memory.h>
