@@ -1,4 +1,5 @@
 #include "elf_loader.h"
+#include "quit.h"
 #include <z_std.h>
 #include <z_log.h>
 #include <z_syscall.h>
@@ -41,8 +42,6 @@
 #define ELF_CLASS       ELFCLASS64
 
 #endif
-
-void terminate(int status);
 
 int load_segments(void *buffer, elf_image_t *image) {
     Elf_Ehdr *ehdr = buffer;
@@ -252,10 +251,10 @@ int elf_loader(loader_payload_t *payload) {
     }
 
     int count = 0;
-    char t_env[64] = {};
+    char e_quit[64] = {};
 
-    snprintf(t_env, sizeof(t_env), "TERMINATE=%p", terminate);
-    env[count++] = t_env;
+    snprintf(e_quit, sizeof(e_quit), "QUIT=%p", quit);
+    env[count++] = e_quit;
 
     if (z_strlen(payload->env)) {
         env[count++] = payload->env;

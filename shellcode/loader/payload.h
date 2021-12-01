@@ -1,14 +1,8 @@
 #ifndef PANGOLIN_PAYLOAD_H
 #define PANGOLIN_PAYLOAD_H
 
+#include "quit.h"
 #include <stdbool.h>
-#include <sys/user.h>
-
-#ifdef __arm__
-typedef struct user_regs regs_t;
-#else
-typedef struct user_regs_struct regs_t;
-#endif
 
 #define PAYLOAD_DELIMITER "\1"
 
