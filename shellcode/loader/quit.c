@@ -1,12 +1,10 @@
 #include "quit.h"
 #include <z_std.h>
 #include <z_syscall.h>
-#include <z_log.h>
-#include <fcntl.h>
 #include <asm/prctl.h>
 
-#define STATUS_PATH "/proc/self/status"
-#define TRACER_FIELD "TracerPid"
+#define PRIVATE_SYSCALL -1
+#define PRIVATE_MAGIC 0x70616e676f6c696e
 
 static regs_t regs_snapshot = {};
 
@@ -15,32 +13,7 @@ void snapshot(regs_t *regs) {
 }
 
 void quit(int status) {
-    int fd = Z_RESULT_V(z_open(STATUS_PATH, O_RDONLY, 0));
-
-    if (fd < 0)
-        z_exit_group(status);
-
-    char buffer[1024] = {};
-    ssize_t length = Z_RESULT_V(z_read(fd, buffer, sizeof(buffer) - 1));
-
-    if (length < 0) {
-        z_close(fd);
-        z_exit_group(status);
-    }
-
-    z_close(fd);
-
-    char *p = z_memmem(buffer, length, TRACER_FIELD, z_strlen(TRACER_FIELD));
-
-    if (!p)
-        z_exit_group(status);
-
-    pid_t pid = (pid_t)z_strtoul(p + z_strlen(TRACER_FIELD) + 2, NULL, 10);
-
-    if (pid != 0 && Z_RESULT_V(z_kill(pid, 0)) == 0)
-        z_exit_group(status);
-
-    LOG("restore snapshot");
+    z_syscall(PRIVATE_SYSCALL, status, PRIVATE_MAGIC);
 
 #ifdef __x86_64__
     if (Z_RESULT_V(z_arch_prctl(ARCH_SET_FS, regs_snapshot.fs_base)) < 0)

@@ -13,6 +13,7 @@
 #define PC_OFFSET           2
 #define REG_SYSCALL         orig_eax
 #define REG_SYSCALL_ARG     ebx
+#define REG_SYSCALL_ARG2    ecx
 
 #elif __x86_64__
 
@@ -23,6 +24,7 @@
 #define PC_OFFSET           2
 #define REG_SYSCALL         orig_rax
 #define REG_SYSCALL_ARG     rdi
+#define REG_SYSCALL_ARG2    rsi
 
 #elif __arm__
 
@@ -33,6 +35,7 @@
 #define PC_OFFSET           4
 #define REG_SYSCALL         uregs[7]
 #define REG_SYSCALL_ARG     uregs[0]
+#define REG_SYSCALL_ARG2    uregs[1]
 
 #elif __aarch64__
 
@@ -43,10 +46,14 @@
 #define PC_OFFSET           4
 #define REG_SYSCALL         regs[8]
 #define REG_SYSCALL_ARG     regs[0]
+#define REG_SYSCALL_ARG2    regs[1]
 
 #else
 #error "unknown arch"
 #endif
+
+constexpr auto PRIVATE_SYSCALL = -1;
+constexpr auto PRIVATE_MAGIC = 0x70616e676f6c696e;
 
 CExecutor::CExecutor(pid_t pid) : CTracee(pid) {
 
@@ -129,11 +136,12 @@ bool CExecutor::run(const unsigned char *shellcode, unsigned int length, void *b
 
         sig = 0;
 
-        if (current.REG_SYSCALL == SYS_exit || current.REG_SYSCALL == SYS_exit_group) {
+        if (current.REG_SYSCALL == SYS_exit || current.REG_SYSCALL == SYS_exit_group ||
+            (current.REG_SYSCALL == PRIVATE_SYSCALL && current.REG_SYSCALL_ARG2 == PRIVATE_MAGIC)) {
             LOG_INFO("catch exit syscall: %d", (int)current.REG_SYSCALL_ARG);
 
             status = (int)current.REG_SYSCALL_ARG;
-            setSyscall(-1);
+            setSyscall(PRIVATE_SYSCALL);
 
             break;
         }
