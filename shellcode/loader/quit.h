@@ -11,5 +11,6 @@ typedef struct user_regs_struct regs_t;
 
 void snapshot(regs_t *regs);
 void quit(int status);
+void *quit_p();
 
 #endif //PANGOLIN_QUIT_H

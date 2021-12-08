@@ -252,7 +252,7 @@ int elf_loader(loader_payload_t *payload) {
     int count = 0;
     char e_quit[64];
 
-    snprintf(e_quit, sizeof(e_quit), "QUIT=%p", quit);
+    snprintf(e_quit, sizeof(e_quit), "QUIT=%p", quit_p());
     env[count++] = e_quit;
 
     if (z_strlen(payload->env)) {

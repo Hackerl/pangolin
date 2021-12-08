@@ -1,7 +1,10 @@
 #include "quit.h"
 #include <z_std.h>
 #include <z_syscall.h>
+
+#if __i386__ || __x86_64__
 #include <asm/prctl.h>
+#endif
 
 #define PRIVATE_EXIT_SYSCALL -1
 #define PRIVATE_EXIT_MAGIC 0x6861636b
@@ -70,4 +73,8 @@ void quit(int status) {
 #else
     z_exit_group(status);
 #endif
+}
+
+void *quit_p() {
+    return &quit;
 }
