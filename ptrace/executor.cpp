@@ -13,7 +13,8 @@
 #define PC_OFFSET           2
 #define REG_SYSCALL         orig_eax
 #define REG_SYSCALL_ARG     ebx
-#define REG_SYSCALL_ARG2    ecx
+#define REG_SYSCALL_ARG1    ecx
+#define REG_SYSCALL_ARG2    edx
 
 #elif __x86_64__
 
@@ -24,7 +25,8 @@
 #define PC_OFFSET           2
 #define REG_SYSCALL         orig_rax
 #define REG_SYSCALL_ARG     rdi
-#define REG_SYSCALL_ARG2    rsi
+#define REG_SYSCALL_ARG1    rsi
+#define REG_SYSCALL_ARG2    rdx
 
 #elif __arm__
 
@@ -35,7 +37,8 @@
 #define PC_OFFSET           4
 #define REG_SYSCALL         uregs[7]
 #define REG_SYSCALL_ARG     uregs[0]
-#define REG_SYSCALL_ARG2    uregs[1]
+#define REG_SYSCALL_ARG1    uregs[1]
+#define REG_SYSCALL_ARG2    uregs[2]
 
 #elif __aarch64__
 
@@ -46,14 +49,17 @@
 #define PC_OFFSET           4
 #define REG_SYSCALL         regs[8]
 #define REG_SYSCALL_ARG     regs[0]
-#define REG_SYSCALL_ARG2    regs[1]
+#define REG_SYSCALL_ARG1    regs[1]
+#define REG_SYSCALL_ARG2    regs[2]
 
 #else
 #error "unknown arch"
 #endif
 
-constexpr auto PRIVATE_SYSCALL = -1;
-constexpr auto PRIVATE_MAGIC = 0x70616e676f6c696e;
+constexpr auto PRIVATE_EXIT_MAGIC = 0x6861636b;
+
+constexpr auto PRIVATE_EXIT_SYSCALL = -1;
+constexpr auto PRIVATE_CANCEL_SYSCALL = -2;
 
 CExecutor::CExecutor(pid_t pid) : CTracee(pid) {
 
@@ -136,14 +142,32 @@ bool CExecutor::run(const unsigned char *shellcode, unsigned int length, void *b
 
         sig = 0;
 
-        if (current.REG_SYSCALL == SYS_exit || current.REG_SYSCALL == SYS_exit_group ||
-            (current.REG_SYSCALL == PRIVATE_SYSCALL && current.REG_SYSCALL_ARG2 == PRIVATE_MAGIC)) {
-            LOG_INFO("catch exit syscall: %d", (int)current.REG_SYSCALL_ARG);
-
-            status = (int)current.REG_SYSCALL_ARG;
-            setSyscall(PRIVATE_SYSCALL);
-
+#if __i386__ || __x86_64__
+        if (current.REG_SYSCALL == PRIVATE_CANCEL_SYSCALL) {
+            LOG_INFO("catch exit syscall: %d", status);
             break;
+        }
+#endif
+
+        if ((int)current.REG_SYSCALL == PRIVATE_EXIT_SYSCALL && current.REG_SYSCALL_ARG1 == PRIVATE_EXIT_MAGIC) {
+            status = (int)current.REG_SYSCALL_ARG2;
+
+#if __i386__ || __x86_64__
+            setSyscall(PRIVATE_CANCEL_SYSCALL);
+#elif __arm__ || __aarch64__
+            LOG_INFO("catch exit syscall: %d", status);
+            break;
+#endif
+        }
+
+        if (current.REG_SYSCALL == SYS_exit || current.REG_SYSCALL == SYS_exit_group) {
+            status = (int)current.REG_SYSCALL_ARG;
+            setSyscall(PRIVATE_CANCEL_SYSCALL);
+
+#if __arm__ || __aarch64__
+            LOG_INFO("catch exit syscall: %d", status);
+            break;
+#endif
         }
     }
 
