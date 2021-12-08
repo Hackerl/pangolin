@@ -208,7 +208,7 @@ int elf_map(const char *path, elf_context_t *ctx) {
 
     LOG("mapping %s", path);
 
-    elf_image_t image = {};
+    elf_image_t image;
 
     if (load_segments(buffer, &image)) {
         z_munmap(buffer, (size_t)size);
@@ -250,7 +250,7 @@ int elf_loader(loader_payload_t *payload) {
     }
 
     int count = 0;
-    char e_quit[64] = {};
+    char e_quit[64];
 
     snprintf(e_quit, sizeof(e_quit), "QUIT=%p", quit);
     env[count++] = e_quit;
