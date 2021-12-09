@@ -82,8 +82,9 @@ bool CExecutor::run(const unsigned char *shellcode, unsigned int length, void *b
         return false;
 
     regs_t regs = {};
+    fp_regs_t fp_regs = {};
 
-    if (!getRegisters(regs))
+    if (!getRegisters(regs) || !getFPRegisters(fp_regs))
         return false;
 
     LOG_INFO("entry: %p stack: %p argument: %p", base, stack, argument);
@@ -174,7 +175,7 @@ bool CExecutor::run(const unsigned char *shellcode, unsigned int length, void *b
     if (!writeMemory(base, buffer.get(), length))
         return false;
 
-    if (!setRegisters(regs))
+    if (!setRegisters(regs) || !setFPRegisters(fp_regs))
         return false;
 
     return sig != SIGSEGV;
@@ -197,8 +198,9 @@ bool CExecutor::call(const unsigned char *shellcode, unsigned int length, void *
         return false;
 
     regs_t regs = {};
+    fp_regs_t fp_regs = {};
 
-    if (!getRegisters(regs))
+    if (!getRegisters(regs) || !getFPRegisters(fp_regs))
         return false;
 
     LOG_INFO("entry: %p stack: %p argument: %p", base, stack, argument);
@@ -263,7 +265,7 @@ bool CExecutor::call(const unsigned char *shellcode, unsigned int length, void *
     if (!writeMemory(base, buffer.get(), length))
         return false;
 
-    if (!setRegisters(regs))
+    if (!setRegisters(regs) || !setFPRegisters(fp_regs))
         return false;
 
     return sig != SIGSEGV;

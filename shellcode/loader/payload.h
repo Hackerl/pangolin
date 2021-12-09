@@ -13,7 +13,7 @@ typedef struct {
     bool daemon;
     char argv[1024];
     char env[1024];
-    regs_t regs;
+    context_t context;
 } loader_payload_t;
 
 #endif //PANGOLIN_PAYLOAD_H

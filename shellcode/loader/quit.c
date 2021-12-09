@@ -9,66 +9,71 @@
 #define PRIVATE_EXIT_SYSCALL -1
 #define PRIVATE_EXIT_MAGIC 0x6861636b
 
-static regs_t regs_snapshot = {};
+static context_t context = {};
 
-void snapshot(regs_t *regs) {
-    z_memcpy(&regs_snapshot, regs, sizeof(regs_t));
+void snapshot(context_t *p) {
+    z_memcpy(&context, p, sizeof(context_t));
 }
 
 void quit(int status) {
     z_syscall(PRIVATE_EXIT_SYSCALL, 0, PRIVATE_EXIT_MAGIC, status);
 
 #ifdef __x86_64__
-    if (Z_RESULT_V(z_arch_prctl(ARCH_SET_FS, regs_snapshot.fs_base)) < 0)
+    if (Z_RESULT_V(z_arch_prctl(ARCH_SET_FS, context.regs.fs_base)) < 0)
         z_exit_group(status);
 
-    if (Z_RESULT_V(z_arch_prctl(ARCH_SET_GS, regs_snapshot.gs_base)) < 0)
+    if (Z_RESULT_V(z_arch_prctl(ARCH_SET_GS, context.regs.gs_base)) < 0)
         z_exit_group(status);
 
     asm volatile(
         "mov %0, %%rdx;"
-        "mov %c1(%%rdx), %%rsp;"
-        "mov %c2(%%rdx), %%rbx;"
-        "mov %c3(%%rdx), %%rbp;"
-        "mov %c4(%%rdx), %%r10;"
-        "mov %c5(%%rdx), %%r11;"
-        "mov %c6(%%rdx), %%r12;"
-        "mov %c7(%%rdx), %%r13;"
-        "mov %c8(%%rdx), %%r14;"
-        "mov %c9(%%rdx), %%r15;"
-        "mov %c10(%%rdx), %%rcx;"
+        "lea %c1(%%rdx), %%rcx;"
+        "fldenv (%%rcx);"
+        "ldmxcsr %c2(%%rdx);"
+        "mov %c3(%%rdx), %%rsp;"
+        "mov %c4(%%rdx), %%rbx;"
+        "mov %c5(%%rdx), %%rbp;"
+        "mov %c6(%%rdx), %%r10;"
+        "mov %c7(%%rdx), %%r11;"
+        "mov %c8(%%rdx), %%r12;"
+        "mov %c9(%%rdx), %%r13;"
+        "mov %c10(%%rdx), %%r14;"
+        "mov %c11(%%rdx), %%r15;"
+        "mov %c12(%%rdx), %%rcx;"
         "push %%rcx;"
-        "mov %c11(%%rdx), %%rcx;"
+        "mov %c13(%%rdx), %%rcx;"
         "push %%rcx;"
-        "mov %c12(%%rdx), %%rax;"
-        "mov %c13(%%rdx), %%rsi;"
-        "mov %c14(%%rdx), %%rdi;"
-        "mov %c15(%%rdx), %%rcx;"
-        "mov %c16(%%rdx), %%r8;"
-        "mov %c17(%%rdx), %%r9;"
-        "mov %c18(%%rdx), %%rdx;"
+        "mov %c14(%%rdx), %%rax;"
+        "mov %c15(%%rdx), %%rsi;"
+        "mov %c16(%%rdx), %%rdi;"
+        "mov %c17(%%rdx), %%rcx;"
+        "mov %c18(%%rdx), %%r8;"
+        "mov %c19(%%rdx), %%r9;"
+        "mov %c20(%%rdx), %%rdx;"
         "popfq;"
         "ret;"
         ::
-        "r"(&regs_snapshot),
-        "i"(offsetof(regs_t, rsp)),
-        "i"(offsetof(regs_t, rbx)),
-        "i"(offsetof(regs_t, rbp)),
-        "i"(offsetof(regs_t, r10)),
-        "i"(offsetof(regs_t, r11)),
-        "i"(offsetof(regs_t, r12)),
-        "i"(offsetof(regs_t, r13)),
-        "i"(offsetof(regs_t, r14)),
-        "i"(offsetof(regs_t, r15)),
-        "i"(offsetof(regs_t, rip)),
-        "i"(offsetof(regs_t, eflags)),
-        "i"(offsetof(regs_t, rax)),
-        "i"(offsetof(regs_t, rsi)),
-        "i"(offsetof(regs_t, rdi)),
-        "i"(offsetof(regs_t, rcx)),
-        "i"(offsetof(regs_t, r8)),
-        "i"(offsetof(regs_t, r9)),
-        "i"(offsetof(regs_t, rdx))
+        "r"(&context),
+        "i"(offsetof(context_t, fp_regs)),
+        "i"(offsetof(context_t, fp_regs.mxcsr)),
+        "i"(offsetof(context_t, regs.rsp)),
+        "i"(offsetof(context_t, regs.rbx)),
+        "i"(offsetof(context_t, regs.rbp)),
+        "i"(offsetof(context_t, regs.r10)),
+        "i"(offsetof(context_t, regs.r11)),
+        "i"(offsetof(context_t, regs.r12)),
+        "i"(offsetof(context_t, regs.r13)),
+        "i"(offsetof(context_t, regs.r14)),
+        "i"(offsetof(context_t, regs.r15)),
+        "i"(offsetof(context_t, regs.rip)),
+        "i"(offsetof(context_t, regs.eflags)),
+        "i"(offsetof(context_t, regs.rax)),
+        "i"(offsetof(context_t, regs.rsi)),
+        "i"(offsetof(context_t, regs.rdi)),
+        "i"(offsetof(context_t, regs.rcx)),
+        "i"(offsetof(context_t, regs.r8)),
+        "i"(offsetof(context_t, regs.r9)),
+        "i"(offsetof(context_t, regs.rdx))
     );
 #else
     z_exit_group(status);

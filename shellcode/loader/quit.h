@@ -5,11 +5,18 @@
 
 #ifdef __arm__
 typedef struct user_regs regs_t;
+typedef struct user_fpregs fp_regs_t;
 #else
 typedef struct user_regs_struct regs_t;
+typedef struct user_fpregs_struct fp_regs_t;
 #endif
 
-void snapshot(regs_t *regs);
+typedef struct {
+    regs_t regs;
+    fp_regs_t fp_regs;
+} context_t;
+
+void snapshot(context_t *p);
 void quit(int status);
 void *quit_p();
 

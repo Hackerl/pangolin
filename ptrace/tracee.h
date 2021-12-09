@@ -7,8 +7,10 @@
 
 #ifdef __arm__
 typedef user_regs regs_t;
+typedef user_fpregs fp_regs_t;
 #else
 typedef user_regs_struct regs_t;
+typedef user_fpregs_struct fp_regs_t;
 #endif
 
 class CTracee {
@@ -26,6 +28,10 @@ public:
 public:
     bool getRegisters(regs_t &regs) const;
     bool setRegisters(regs_t &regs) const;
+
+public:
+    bool getFPRegisters(fp_regs_t &fp_regs) const;
+    bool setFPRegisters(fp_regs_t &fp_regs) const;
 
 public:
     bool readMemory(void *address, void *buffer, unsigned long length) const;

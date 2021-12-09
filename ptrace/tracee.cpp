@@ -74,6 +74,34 @@ bool CTracee::setRegisters(regs_t &regs) const {
     return true;
 }
 
+bool CTracee::getFPRegisters(fp_regs_t &fp_regs) const {
+    iovec io = {};
+
+    io.iov_base = &fp_regs;
+    io.iov_len = sizeof(fp_regs_t);
+
+    if (ptrace(PTRACE_GETREGSET, mPID, (void *)NT_FPREGSET, (void *)&io) < 0) {
+        LOG_ERROR("get process %d fp-registers failed: %s", mPID, strerror(errno));
+        return false;
+    }
+
+    return true;
+}
+
+bool CTracee::setFPRegisters(fp_regs_t &fp_regs) const {
+    iovec io = {};
+
+    io.iov_base = &fp_regs;
+    io.iov_len = sizeof(fp_regs_t);
+
+    if (ptrace(PTRACE_SETREGSET, mPID, (void *)NT_FPREGSET, (void *)&io) < 0) {
+        LOG_ERROR("set process %d fp-registers failed: %s", mPID, strerror(errno));
+        return false;
+    }
+
+    return true;
+}
+
 bool CTracee::readMemory(void *address, void *buffer, unsigned long length) const {
     for (unsigned long i = 0; i < length; i += sizeof(long)) {
         long r = ptrace(PTRACE_PEEKTEXT, mPID, (char *)address + i, nullptr);
