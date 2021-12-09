@@ -8,6 +8,9 @@
 #ifdef __arm__
 typedef user_regs regs_t;
 typedef user_fpregs fp_regs_t;
+#elif __aarch64__
+typedef user_regs_struct regs_t;
+typedef user_fpsimd_struct fp_regs_t;
 #else
 typedef user_regs_struct regs_t;
 typedef user_fpregs_struct fp_regs_t;
