@@ -81,6 +81,13 @@ bool CExecutor::run(const unsigned char *shellcode, unsigned int length, void *b
     if (!writeMemory(base, (void *)shellcode, length))
         return false;
 
+#if __arm__ || __aarch64__
+    uintptr_t tls = 0;
+
+    if (!getTLS(tls))
+        return false;
+#endif
+
     regs_t regs = {};
     fp_regs_t fp_regs = {};
 
@@ -175,6 +182,11 @@ bool CExecutor::run(const unsigned char *shellcode, unsigned int length, void *b
     if (!writeMemory(base, buffer.get(), length))
         return false;
 
+#if __arm__ || __aarch64__
+    if (!setTLS(tls))
+        return false;
+#endif
+
     if (!setRegisters(regs) || !setFPRegisters(fp_regs))
         return false;
 
@@ -196,6 +208,13 @@ bool CExecutor::call(const unsigned char *shellcode, unsigned int length, void *
 
     if (!writeMemory(base, (void *)shellcode, length))
         return false;
+
+#if __arm__ || __aarch64__
+    uintptr_t tls = 0;
+
+    if (!getTLS(tls))
+        return false;
+#endif
 
     regs_t regs = {};
     fp_regs_t fp_regs = {};
@@ -264,6 +283,11 @@ bool CExecutor::call(const unsigned char *shellcode, unsigned int length, void *
 
     if (!writeMemory(base, buffer.get(), length))
         return false;
+
+#if __arm__ || __aarch64__
+    if (!setTLS(tls))
+        return false;
+#endif
 
     if (!setRegisters(regs) || !setFPRegisters(fp_regs))
         return false;
