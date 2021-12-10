@@ -4,7 +4,10 @@
 #include <set>
 #include <sys/user.h>
 #include <sys/types.h>
+
+#if __arm__ || __aarch64__
 #include <cstdint>
+#endif
 
 #ifdef __arm__
 typedef user_regs regs_t;
