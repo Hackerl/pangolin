@@ -102,6 +102,36 @@ bool CTracee::setFPRegisters(fp_regs_t &fp_regs) const {
     return true;
 }
 
+#if __arm__ || __aarch64__
+bool CTracee::getTLS(uintptr_t &tls) const {
+    iovec io = {};
+
+    io.iov_base = &tls;
+    io.iov_len = sizeof(uintptr_t);
+
+    if (ptrace(PTRACE_GETREGSET, mPID, (void *)NT_ARM_TLS, (void *)&io) < 0) {
+        LOG_ERROR("get process %d tls failed: %s", mPID, strerror(errno));
+        return false;
+    }
+
+    return true;
+}
+
+bool CTracee::setTLS(uintptr_t &tls) const {
+    iovec io = {};
+
+    io.iov_base = &tls;
+    io.iov_len = sizeof(uintptr_t);
+
+    if (ptrace(PTRACE_SETREGSET, mPID, (void *)NT_ARM_TLS, (void *)&io) < 0) {
+        LOG_ERROR("set process %d tls failed: %s", mPID, strerror(errno));
+        return false;
+    }
+
+    return true;
+}
+#endif
+
 bool CTracee::readMemory(void *address, void *buffer, unsigned long length) const {
     for (unsigned long i = 0; i < length; i += sizeof(long)) {
         long r = ptrace(PTRACE_PEEKTEXT, mPID, (char *)address + i, nullptr);

@@ -55,6 +55,13 @@ int CInjector::inject(const std::vector<std::string>& arguments, const std::vect
     void *result = nullptr;
     CExecutor *executor = mExecutors.front();
 
+#if __arm__ || __aarch64__
+    uintptr_t tls = 0;
+
+    if (!executor->getTLS(tls))
+        return -1;
+#endif
+
     LOG_INFO("execute alloc shellcode");
 
     if (!executor->call(alloc_sc, alloc_sc_len, nullptr, nullptr, nullptr, &result)) {
@@ -98,6 +105,11 @@ int CInjector::inject(const std::vector<std::string>& arguments, const std::vect
         LOG_ERROR("execute free shellcode failed");
         return -1;
     }
+
+#if __arm__ || __aarch64__
+    if (!executor->setTLS(tls))
+        return -1;
+#endif
 
     return status;
 }

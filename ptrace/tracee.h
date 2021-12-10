@@ -4,6 +4,7 @@
 #include <set>
 #include <sys/user.h>
 #include <sys/types.h>
+#include <cstdint>
 
 #ifdef __arm__
 typedef user_regs regs_t;
@@ -35,6 +36,12 @@ public:
 public:
     bool getFPRegisters(fp_regs_t &fp_regs) const;
     bool setFPRegisters(fp_regs_t &fp_regs) const;
+
+#if __arm__ || __aarch64__
+public:
+    bool getTLS(uintptr_t &tls) const;
+    bool setTLS(uintptr_t &tls) const;
+#endif
 
 public:
     bool readMemory(void *address, void *buffer, unsigned long length) const;
