@@ -17,7 +17,7 @@ typedef struct {
     unsigned long maxVA;
 } elf_image_t;
 
-int load_segments(void *buffer, elf_image_t *image);
+int load_segments(char *buffer, int fd, elf_image_t *image);
 
 int elf_map(const char *path, elf_context_t *ctx);
 int elf_loader(loader_payload_t *payload);

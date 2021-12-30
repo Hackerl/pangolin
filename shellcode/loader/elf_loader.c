@@ -5,6 +5,7 @@
 #include <sys/mman.h>
 #include <fcntl.h>
 #include <elf.h>
+#include <limits.h>
 
 #define STACK_ALIGN     16
 
@@ -22,6 +23,8 @@
 
 #if __i386__ || __arm__
 
+#define BUFFER_SIZE     512
+
 #define STAT            stat64
 #define Z_STAT          z_stat64
 
@@ -31,6 +34,8 @@
 #define ELF_CLASS       ELFCLASS32
 
 #elif __x86_64__ || __aarch64__
+
+#define BUFFER_SIZE     832
 
 #define STAT            stat
 #define Z_STAT          z_stat
@@ -42,9 +47,9 @@
 
 #endif
 
-int load_segments(void *buffer, elf_image_t *image) {
-    Elf_Ehdr *ehdr = buffer;
-    Elf_Phdr *phdr = buffer + ehdr->e_phoff;
+int load_segments(char *buffer, int fd, elf_image_t *image) {
+    Elf_Ehdr *ehdr = (Elf_Ehdr *)buffer;
+    Elf_Phdr *phdr = (Elf_Phdr *)(buffer + ehdr->e_phoff);
 
     unsigned long minVA = -1;
     unsigned long maxVA = 0;
@@ -69,8 +74,8 @@ int load_segments(void *buffer, elf_image_t *image) {
             dyn ? NULL : (void *)minVA,
             maxVA - minVA,
             PROT_NONE,
-            (dyn ? 0 : MAP_FIXED) | MAP_PRIVATE | MAP_ANONYMOUS,
-            -1,
+            (dyn ? 0 : MAP_FIXED) | MAP_PRIVATE | MAP_DENYWRITE,
+            fd,
             0));
 
     if (base == MAP_FAILED) {
@@ -78,39 +83,58 @@ int load_segments(void *buffer, elf_image_t *image) {
         return -1;
     }
 
-    z_munmap(base, maxVA - minVA);
-
     LOG("segment base: 0x%lx[0x%lx]", base, maxVA - minVA);
 
     for (Elf_Phdr *i = phdr; i < &phdr[ehdr->e_phnum]; i++) {
         if (i->p_type != PT_LOAD)
             continue;
 
-        unsigned long offset = i->p_vaddr & (PAGE_SIZE - 1);
-        unsigned long start = (unsigned long)base + TRUNC_PG(i->p_vaddr) - minVA;
-        unsigned long size = ROUND_PG(i->p_memsz + offset);
-
-        LOG("segment: 0x%lx[0x%lx]", start, size);
-
-        void *p = Z_RESULT_V(z_mmap(
-                (void *)start,
-                size,
-                PROT_WRITE,
-                MAP_FIXED | MAP_ANONYMOUS | MAP_PRIVATE,
-                -1,
-                0));
-
-        if (p == MAP_FAILED) {
+        if ((i->p_align & (PAGE_SIZE - 1)) != 0) {
             z_munmap(base, maxVA - minVA);
             return -1;
         }
 
-        z_memcpy((unsigned char *)p + offset, buffer + i->p_offset, i->p_filesz);
+        if (((i->p_vaddr - i->p_offset) & (i->p_align - 1)) != 0) {
+            z_munmap(base, maxVA - minVA);
+            return -1;
+        }
+
+        unsigned long offset = i->p_vaddr & (PAGE_SIZE - 1);
+        unsigned long start = (unsigned long)base + TRUNC_PG(i->p_vaddr) - minVA;
+        unsigned long size = ROUND_PG(i->p_memsz + offset);
+        unsigned long filesize = ROUND_PG(i->p_filesz + offset);
+
+        LOG("segment: 0x%lx[0x%lx]", start, size);
 
         unsigned int flags = i->p_flags;
         int protection = (flags & PF_R ? PROT_READ : 0) | (flags & PF_W ? PROT_WRITE : 0) | (flags & PF_X ? PROT_EXEC : 0);
 
-        if (Z_RESULT_V(z_mprotect(p, size, protection)) == -1) {
+        if (Z_RESULT_V(z_mmap(
+                (void *)start,
+                size,
+                protection,
+                MAP_FIXED | MAP_PRIVATE | MAP_DENYWRITE,
+                fd,
+                i->p_offset - offset)) == MAP_FAILED) {
+            z_munmap(base, maxVA - minVA);
+            return -1;
+        }
+
+        if (i->p_memsz == i->p_filesz)
+            continue;
+
+        z_memset((char *)start + offset + i->p_filesz, 0, filesize - i->p_filesz - offset);
+
+        if (size == filesize)
+            continue;
+
+        if (Z_RESULT_V(z_mmap(
+                (char *)start + filesize,
+                size - filesize,
+                protection,
+                MAP_FIXED | MAP_PRIVATE | MAP_ANONYMOUS,
+                -1,
+                0)) == MAP_FAILED) {
             z_munmap(base, maxVA - minVA);
             return -1;
         }
@@ -163,42 +187,44 @@ int elf_map(const char *path, elf_context_t *ctx) {
     int fd = Z_RESULT_V(z_open(path, O_RDONLY, 0));
 
     if (fd < 0) {
-        LOG("open failed: %s", path);
+        LOG("open file failed: %s", path);
         return -1;
     }
 
-    long size = Z_RESULT_V(z_lseek(fd, 0, SEEK_END));
+    char buffer[BUFFER_SIZE];
+    z_memset(buffer, 0, sizeof(buffer));
 
-    if (size < 0) {
+    if (Z_RESULT_V(z_read(fd, buffer, BUFFER_SIZE)) < 0) {
+        LOG("read file failed: %s", path);
         z_close(fd);
         return -1;
     }
 
-    void *buffer = Z_RESULT_V(z_mmap(NULL, (size_t)size, PROT_READ, MAP_PRIVATE, fd, 0));
-
-    if (buffer == MAP_FAILED) {
+    if (elf_check((Elf_Ehdr *)buffer) < 0) {
         z_close(fd);
         return -1;
     }
 
-    z_close(fd);
-
-    if (elf_check(buffer) < 0) {
-        z_munmap(buffer, (size_t)size);
-        return -1;
-    }
-
-    Elf_Ehdr *ehdr = buffer;
-    Elf_Phdr *phdr = buffer + ehdr->e_phoff;
+    Elf_Ehdr *ehdr = (Elf_Ehdr *)buffer;
+    Elf_Phdr *phdr = (Elf_Phdr *)(buffer + ehdr->e_phoff);
 
     for (Elf_Phdr *i = phdr; i < &phdr[ehdr->e_phnum]; i++) {
         if (i->p_type == PT_INTERP) {
-            const char *interpreter = buffer + i->p_offset;
+            char interpreter[PATH_MAX];
+            z_memset(interpreter, 0, sizeof(interpreter));
+
+            if (Z_RESULT_V(z_lseek(fd, i->p_offset, SEEK_SET)) < 0) {
+                z_close(fd);
+                return -1;
+            }
+
+            if (Z_RESULT_V(z_read(fd, interpreter, i->p_filesz)) != i->p_filesz) {
+                z_close(fd);
+                return -1;
+            }
 
             if (elf_map(interpreter, ctx + 1) < 0) {
-                LOG("mapping interpreter failed: %s", interpreter);
-                z_munmap(buffer, (size_t)size);
-
+                z_close(fd);
                 return -1;
             }
 
@@ -209,9 +235,10 @@ int elf_map(const char *path, elf_context_t *ctx) {
     LOG("mapping %s", path);
 
     elf_image_t image;
+    z_memset(&image, 0, sizeof(image));
 
-    if (load_segments(buffer, &image)) {
-        z_munmap(buffer, (size_t)size);
+    if (load_segments(buffer, fd, &image)) {
+        z_close(fd);
         return -1;
     }
 
@@ -221,7 +248,7 @@ int elf_map(const char *path, elf_context_t *ctx) {
     ctx->header_num = ehdr->e_phnum;
     ctx->header_size = ehdr->e_phentsize;
 
-    z_munmap(buffer, (size_t)size);
+    z_close(fd);
 
     return 0;
 }
