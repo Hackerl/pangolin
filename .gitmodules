@@ -1,6 +1,3 @@
 [submodule "shellcode/c-runtime"]
 	path = shellcode/c-runtime
 	url = https://github.com/Hackerl/c-runtime
-[submodule "zero"]
-	path = zero
-	url = https://github.com/Hackerl/zero
