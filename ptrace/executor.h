@@ -3,12 +3,6 @@
 
 #include "tracee.h"
 
-enum emState {
-    DETACHED,
-    ATTACHED,
-    TERMINATED
-};
-
 class CExecutor : public CTracee {
 public:
     explicit CExecutor(pid_t pid);
