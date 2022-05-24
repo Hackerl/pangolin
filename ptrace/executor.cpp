@@ -61,8 +61,14 @@ constexpr auto PRIVATE_EXIT_MAGIC = 0x6861636b;
 constexpr auto PRIVATE_EXIT_SYSCALL = -1;
 constexpr auto PRIVATE_CANCEL_SYSCALL = -2;
 
-CExecutor::CExecutor(pid_t pid) : CTracee(pid) {
+CExecutor::CExecutor(pid_t pid, bool deaf) : CTracee(pid), mDeaf(deaf) {
 
+}
+
+CExecutor::~CExecutor() {
+    for (const auto &sig: mSignals) {
+        kill(mPID, sig);
+    }
 }
 
 bool CExecutor::run(const unsigned char *shellcode, unsigned int length, void *base, void *stack, void *argument, int &status) {
@@ -145,6 +151,16 @@ bool CExecutor::run(const unsigned char *shellcode, unsigned int length, void *b
 
         if (sig != SIGTRAP) {
             LOG_INFO("receive signal: %s", strsignal(sig));
+
+            if (mDeaf) {
+                LOG_INFO("delay sending signal");
+
+                mSignals.push_back(sig);
+                sig = 0;
+
+                continue;
+            }
+
             continue;
         }
 
@@ -279,6 +295,13 @@ bool CExecutor::call(const unsigned char *shellcode, unsigned int length, void *
         }
 
         LOG_INFO("receive signal: %s", strsignal(sig));
+
+        if (mDeaf) {
+            LOG_INFO("delay sending signal");
+
+            mSignals.push_back(sig);
+            sig = 0;
+        }
     }
 
     if (!writeMemory(base, buffer.get(), length))

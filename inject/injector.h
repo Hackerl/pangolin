@@ -11,7 +11,7 @@ public:
     ~CInjector();
 
 public:
-    bool open(pid_t pid);
+    bool open(pid_t pid, bool deaf);
 
 public:
     int inject(const std::vector<std::string>& arguments, const std::vector<std::string>& environs, bool daemon);

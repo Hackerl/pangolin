@@ -2,10 +2,12 @@
 #define PANGOLIN_EXECUTOR_H
 
 #include "tracee.h"
+#include <list>
 
 class CExecutor : public CTracee {
 public:
-    explicit CExecutor(pid_t pid);
+    explicit CExecutor(pid_t pid, bool deaf);
+    ~CExecutor();
 
 public:
     bool run(const unsigned char *shellcode, unsigned int length, void *base, void *stack, void *argument, int &status);
@@ -13,6 +15,10 @@ public:
 
 private:
     bool getExecBase(void **base) const;
+
+private:
+    bool mDeaf;
+    std::list<int> mSignals;
 };
 
 

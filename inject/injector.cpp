@@ -16,7 +16,7 @@ CInjector::~CInjector() {
     }
 }
 
-bool CInjector::open(pid_t pid) {
+bool CInjector::open(pid_t pid, bool deaf) {
     std::list<pid_t> threads;
 
     if (!zero::proc::getThreads(pid, threads)) {
@@ -25,7 +25,7 @@ bool CInjector::open(pid_t pid) {
     }
 
     for (const auto &tid : threads) {
-        std::unique_ptr<CExecutor> executor(new CExecutor(tid));
+        std::unique_ptr<CExecutor> executor(new CExecutor(tid, deaf));
 
         if (!executor->attach())
             return false;
