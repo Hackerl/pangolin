@@ -276,13 +276,8 @@ int elf_loader(loader_payload_t *payload) {
         }
     }
 
-    int count = 0;
-    char e_quit[64];
-
-    snprintf(e_quit, sizeof(e_quit), "QUIT=%p", quit_p());
-    env[count++] = e_quit;
-
     if (z_strlen(payload->env)) {
+        int count = 0;
         env[count++] = payload->env;
 
         for (char *i = payload->env; *i && count < PAYLOAD_MAX_ENV; i++) {
@@ -374,6 +369,10 @@ int elf_loader(loader_payload_t *payload) {
     for (char ** i = env; *i; i++)
         *(char **)p++ = *i;
 
+    char *e_quit = (char *)(p + 2) + length;
+    sprintf(e_quit, "QUIT=%p", quit_p());
+
+    *(char **)p++ = e_quit;
     *(char **)p++ = NULL;
 
     z_memcpy(p, av, length);
