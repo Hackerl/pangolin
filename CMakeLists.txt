@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.0)
 project(pangolin)
 
-set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_STANDARD 17)
 
 include_directories(${CMAKE_SOURCE_DIR})
 
@@ -15,7 +15,7 @@ include(FetchContent)
 FetchContent_Declare(
         zero
         GIT_REPOSITORY https://github.com/Hackerl/zero
-        GIT_TAG master
+        GIT_TAG 2ee1ee881dc5a0912dcd0a9a2eb4d2fd82ecd012
 )
 
 FetchContent_MakeAvailable(zero)

@@ -6,9 +6,9 @@
 #include <vector>
 #include <string>
 
-class CInjector {
+class Injector {
 public:
-    ~CInjector();
+    ~Injector();
 
 public:
     bool open(pid_t pid, bool deaf);
@@ -17,7 +17,7 @@ public:
     int inject(const std::vector<std::string>& arguments, const std::vector<std::string>& environs, bool daemon);
 
 private:
-    std::list<CExecutor *> mExecutors;
+    std::list<Executor *> mExecutors;
 };
 
 

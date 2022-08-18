@@ -47,12 +47,34 @@
 
 #endif
 
-int load_segments(char *buffer, int fd, elf_image_t *image) {
-    Elf_Ehdr *ehdr = (Elf_Ehdr *)buffer;
-    Elf_Phdr *phdr = (Elf_Phdr *)(buffer + ehdr->e_phoff);
+typedef struct {
+    uintptr_t base;
+    uintptr_t minVA;
+    uintptr_t maxVA;
+} elf_image_t;
 
-    unsigned long minVA = -1;
-    unsigned long maxVA = 0;
+static int check_header(Elf_Ehdr *ehdr) {
+    if (ehdr->e_ident[EI_MAG0] != ELFMAG0 ||
+        ehdr->e_ident[EI_MAG1] != ELFMAG1 ||
+        ehdr->e_ident[EI_MAG2] != ELFMAG2 ||
+        ehdr->e_ident[EI_MAG3] != ELFMAG3)
+        return -1;
+
+    if (ehdr->e_ident[EI_CLASS] != ELF_CLASS || ehdr->e_ident[EI_VERSION] != EV_CURRENT)
+        return -1;
+
+    if (ehdr->e_type != ET_EXEC && ehdr->e_type != ET_DYN)
+        return -1;
+
+    return 0;
+}
+
+static int load_segments(char *buffer, int fd, elf_image_t *image) {
+    Elf_Ehdr *ehdr = (Elf_Ehdr *) buffer;
+    Elf_Phdr *phdr = (Elf_Phdr *) (buffer + ehdr->e_phoff);
+
+    uintptr_t minVA = -1;
+    uintptr_t maxVA = 0;
 
     for (Elf_Phdr *i = phdr; i < &phdr[ehdr->e_phnum]; i++) {
         if (i->p_type != PT_LOAD)
@@ -71,12 +93,13 @@ int load_segments(char *buffer, int fd, elf_image_t *image) {
     int dyn = ehdr->e_type == ET_DYN;
 
     void *base = Z_RESULT_V(z_mmap(
-            dyn ? NULL : (void *)minVA,
+            dyn ? NULL : (void *) minVA,
             maxVA - minVA,
             PROT_NONE,
             (dyn ? 0 : MAP_FIXED) | MAP_PRIVATE | MAP_DENYWRITE,
             fd,
-            0));
+            0
+    ));
 
     if (base == MAP_FAILED) {
         LOG("mmap failed");
@@ -99,23 +122,23 @@ int load_segments(char *buffer, int fd, elf_image_t *image) {
             return -1;
         }
 
-        unsigned long offset = i->p_vaddr & (PAGE_SIZE - 1);
-        unsigned long start = (unsigned long)base + TRUNC_PG(i->p_vaddr) - minVA;
-        unsigned long size = ROUND_PG(i->p_memsz + offset);
-        unsigned long filesize = ROUND_PG(i->p_filesz + offset);
+        size_t offset = i->p_vaddr & (PAGE_SIZE - 1);
+        size_t size = ROUND_PG(i->p_memsz + offset);
+        size_t filesize = ROUND_PG(i->p_filesz + offset);
+        uintptr_t start = (uintptr_t) base + TRUNC_PG(i->p_vaddr) - minVA;
 
         LOG("segment: 0x%lx[0x%lx]", start, size);
 
-        unsigned int flags = i->p_flags;
-        int protection = (flags & PF_R ? PROT_READ : 0) | (flags & PF_W ? PROT_WRITE : 0) | (flags & PF_X ? PROT_EXEC : 0);
+        int protection = (i->p_flags & PF_R ? PROT_READ : 0) | (i->p_flags & PF_W ? PROT_WRITE : 0) |
+                         (i->p_flags & PF_X ? PROT_EXEC : 0);
 
         if (Z_RESULT_V(z_mmap(
-                (void *)start,
+                (void *) start,
                 size,
                 protection,
                 MAP_FIXED | MAP_PRIVATE | MAP_DENYWRITE,
                 fd,
-                i->p_offset - offset)) == MAP_FAILED) {
+                (off_t) (i->p_offset - offset))) == MAP_FAILED) {
             z_munmap(base, maxVA - minVA);
             return -1;
         }
@@ -123,13 +146,13 @@ int load_segments(char *buffer, int fd, elf_image_t *image) {
         if (i->p_memsz == i->p_filesz)
             continue;
 
-        z_memset((char *)start + offset + i->p_filesz, 0, filesize - i->p_filesz - offset);
+        z_memset((char *) start + offset + i->p_filesz, 0, filesize - i->p_filesz - offset);
 
         if (size == filesize)
             continue;
 
         if (Z_RESULT_V(z_mmap(
-                (char *)start + filesize,
+                (char *) start + filesize,
                 size - filesize,
                 protection,
                 MAP_FIXED | MAP_PRIVATE | MAP_ANONYMOUS,
@@ -140,37 +163,14 @@ int load_segments(char *buffer, int fd, elf_image_t *image) {
         }
     }
 
-    image->base = (unsigned long)base;
+    image->base = (uintptr_t) base;
     image->minVA = minVA;
     image->maxVA = maxVA;
 
     return 0;
 }
 
-int elf_check(Elf_Ehdr *ehdr) {
-    if (
-            ehdr->e_ident[EI_MAG0] != ELFMAG0 ||
-            ehdr->e_ident[EI_MAG1] != ELFMAG1 ||
-            ehdr->e_ident[EI_MAG2] != ELFMAG2 ||
-            ehdr->e_ident[EI_MAG3] != ELFMAG3) {
-        LOG("elf magic error");
-        return -1;
-    }
-
-    if (ehdr->e_ident[EI_CLASS] != ELF_CLASS || ehdr->e_ident[EI_VERSION] != EV_CURRENT) {
-        LOG("elf class error");
-        return -1;
-    }
-
-    if (ehdr->e_type != ET_EXEC && ehdr->e_type != ET_DYN) {
-        LOG("elf type error");
-        return -1;
-    }
-
-    return 0;
-}
-
-int elf_map(const char *path, elf_context_t *ctx) {
+int load_elf(const char *path, elf_context_t ctx[2]) {
     struct STAT sb;
     z_memset(&sb, 0, sizeof(sb));
 
@@ -180,7 +180,7 @@ int elf_map(const char *path, elf_context_t *ctx) {
     }
 
     if ((sb.st_mode & S_IFREG) == 0) {
-        LOG("file type invalid: %s", path);
+        LOG("invalid file type: %s", path);
         return -1;
     }
 
@@ -200,20 +200,21 @@ int elf_map(const char *path, elf_context_t *ctx) {
         return -1;
     }
 
-    if (elf_check((Elf_Ehdr *)buffer) < 0) {
+    if (check_header((Elf_Ehdr *) buffer) < 0) {
+        LOG("invalid elf header");
         z_close(fd);
         return -1;
     }
 
-    Elf_Ehdr *ehdr = (Elf_Ehdr *)buffer;
-    Elf_Phdr *phdr = (Elf_Phdr *)(buffer + ehdr->e_phoff);
+    Elf_Ehdr *ehdr = (Elf_Ehdr *) buffer;
+    Elf_Phdr *phdr = (Elf_Phdr *) (buffer + ehdr->e_phoff);
 
     for (Elf_Phdr *i = phdr; i < &phdr[ehdr->e_phnum]; i++) {
         if (i->p_type == PT_INTERP) {
             char interpreter[PATH_MAX];
             z_memset(interpreter, 0, sizeof(interpreter));
 
-            if (Z_RESULT_V(z_lseek(fd, i->p_offset, SEEK_SET)) < 0) {
+            if (Z_RESULT_V(z_lseek(fd, (off_t) i->p_offset, SEEK_SET)) < 0) {
                 z_close(fd);
                 return -1;
             }
@@ -223,7 +224,7 @@ int elf_map(const char *path, elf_context_t *ctx) {
                 return -1;
             }
 
-            if (elf_map(interpreter, ctx + 1) < 0) {
+            if (load_elf(interpreter, ctx + 1) < 0) {
                 z_close(fd);
                 return -1;
             }
@@ -237,7 +238,7 @@ int elf_map(const char *path, elf_context_t *ctx) {
     elf_image_t image;
     z_memset(&image, 0, sizeof(image));
 
-    if (load_segments(buffer, fd, &image)) {
+    if (load_segments(buffer, fd, &image) < 0) {
         z_close(fd);
         return -1;
     }
@@ -253,57 +254,7 @@ int elf_map(const char *path, elf_context_t *ctx) {
     return 0;
 }
 
-int elf_loader(loader_payload_t *payload) {
-    int argc = 0;
-
-    char *argv[PAYLOAD_MAX_ARG];
-    char *env[PAYLOAD_MAX_ENV];
-
-    z_memset(argv, 0, sizeof(argv));
-    z_memset(env, 0, sizeof(env));
-
-    if (!z_strlen(payload->argv)) {
-        LOG("empty argv");
-        return -1;
-    }
-
-    argv[argc++] = payload->argv;
-
-    for (char *i = payload->argv; *i && argc < PAYLOAD_MAX_ARG; i++) {
-        if (*i == *PAYLOAD_DELIMITER) {
-            *i = 0;
-            argv[argc++] = i + 1;
-        }
-    }
-
-    if (z_strlen(payload->env)) {
-        int count = 0;
-        env[count++] = payload->env;
-
-        for (char *i = payload->env; *i && count < PAYLOAD_MAX_ENV; i++) {
-            if (*i == *PAYLOAD_DELIMITER) {
-                *i = 0;
-                env[count++] = i + 1;
-            }
-        }
-    }
-
-    for (int i = 0; i < argc; i++)
-        LOG("arg[%d] %s", i, argv[i]);
-
-    for (char **e = env; *e != NULL; e++)
-        LOG("env %s", *e);
-
-    const char *path = argv[0];
-
-    elf_context_t context[2];
-    z_memset(context, 0, sizeof(context));
-
-    if (elf_map(path, context) < 0) {
-        LOG("elf mapping failed: %s", path);
-        return -1;
-    }
-
+int jump_to_entry(elf_context_t ctx[2], int argc, char **argv, char **envp) {
     int fd = Z_RESULT_V(z_open(AV_PATH, O_RDONLY, 0));
 
     if (fd < 0) {
@@ -323,59 +274,56 @@ int elf_loader(loader_payload_t *payload) {
 
     z_close(fd);
 
-    for (Elf_auxv_t *i = (Elf_auxv_t *)av; i->a_type != AT_NULL; i++) {
+    for (Elf_auxv_t *i = (Elf_auxv_t *) av; i->a_type != AT_NULL; i++) {
         switch (i->a_type) {
             case AT_PHDR:
-                i->a_un.a_val = context[PROGRAM].header;
+                i->a_un.a_val = ctx[PROGRAM].header;
                 break;
 
             case AT_PHENT:
-                i->a_un.a_val = context[PROGRAM].header_size;
+                i->a_un.a_val = ctx[PROGRAM].header_size;
                 break;
 
             case AT_PHNUM:
-                i->a_un.a_val = context[PROGRAM].header_num;
+                i->a_un.a_val = ctx[PROGRAM].header_num;
                 break;
 
             case AT_BASE:
-                i->a_un.a_val = context[INTERPRETER].base ? context[INTERPRETER].base : 0;
+                i->a_un.a_val = ctx[INTERPRETER].base ? ctx[INTERPRETER].base : 0;
                 break;
 
             case AT_ENTRY:
-                i->a_un.a_val = context[PROGRAM].entry;
+                i->a_un.a_val = ctx[PROGRAM].entry;
                 break;
 
             case AT_EXECFN:
-                i->a_un.a_val = (unsigned long)path;
+                i->a_un.a_val = (uintptr_t) argv[0];
                 break;
         }
     }
 
-    unsigned char buffer[4096];
+    char buffer[4096];
     z_memset(buffer, 0, sizeof(buffer));
 
-    unsigned long entry = context[INTERPRETER].entry ? context[INTERPRETER].entry : context[PROGRAM].entry;
+    char *stack = (char *) (((uintptr_t) buffer + STACK_ALIGN - 1) & ~(STACK_ALIGN - 1));
 
-    unsigned char *stack = (unsigned char *)(((unsigned long)buffer + STACK_ALIGN - 1) & ~(STACK_ALIGN - 1));
-    unsigned long *p = (unsigned long *)stack;
+    size_t *p = (size_t *) stack;
 
-    *(int *)p++ = argc;
+    *(int *) p++ = argc;
 
     for (int i = 0; i < argc; i++)
-        *(char **)p++ = argv[i];
+        *(char **) p++ = argv[i];
 
-    *(char **)p++ = NULL;
+    *(char **) p++ = NULL;
 
-    for (char ** i = env; *i; i++)
-        *(char **)p++ = *i;
+    for (char **i = envp; *i; i++)
+        *(char **) p++ = *i;
 
-    char *e_quit = (char *)(p + 2) + length;
-    sprintf(e_quit, "QUIT=%p", quit_p());
-
-    *(char **)p++ = e_quit;
-    *(char **)p++ = NULL;
+    *(char **) p++ = NULL;
 
     z_memcpy(p, av, length);
+
+    uintptr_t entry = ctx[INTERPRETER].entry ? ctx[INTERPRETER].entry : ctx[PROGRAM].entry;
 
 #ifdef __i386__
     asm volatile("mov %0, %%esp; xor %%edx, %%edx; jmp *%1;" :: "r"(stack), "a"(entry));

@@ -3,18 +3,19 @@
 
 #include "tracee.h"
 #include <list>
+#include <cstdint>
 
-class CExecutor : public CTracee {
+class Executor : public Tracee {
 public:
-    explicit CExecutor(pid_t pid, bool deaf);
-    ~CExecutor();
+    explicit Executor(pid_t pid, bool deaf);
+    ~Executor();
 
 public:
-    bool run(const unsigned char *shellcode, unsigned int length, void *base, void *stack, void *argument, int &status);
-    bool call(const unsigned char *shellcode, unsigned int length, void *base, void *stack, void *argument, void **result);
+    std::optional<int> run(void *shellcode, size_t length, uintptr_t base, uintptr_t stack, void *argument);
+    std::optional<void *> call(void *shellcode, size_t length, uintptr_t base, uintptr_t stack, void *argument);
 
 private:
-    bool getExecBase(void **base) const;
+    [[nodiscard]] std::optional<uintptr_t> getExecutableMemory() const;
 
 private:
     bool mDeaf;

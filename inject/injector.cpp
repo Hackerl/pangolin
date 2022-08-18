@@ -5,27 +5,30 @@
 #include <shellcode/free.h>
 #include <shellcode/loader.h>
 #include <shellcode/loader/payload.h>
-#include <unistd.h>
+
+#ifndef PAGE_SIZE
+#define PAGE_SIZE       0x1000
+#endif
 
 constexpr auto ALLOC_SIZE = 0x21000;
 
-CInjector::~CInjector() {
+Injector::~Injector() {
     for (const auto &executor : mExecutors) {
-        executor->detach();
+        std::ignore = executor->detach();
         delete executor;
     }
 }
 
-bool CInjector::open(pid_t pid, bool deaf) {
-    std::list<pid_t> threads;
+bool Injector::open(pid_t pid, bool deaf) {
+    std::optional<std::list<pid_t>> threads = zero::proc::getThreads(pid);
 
-    if (!zero::proc::getThreads(pid, threads)) {
+    if (!threads) {
         LOG_ERROR("get process %d threads failed", pid);
         return false;
     }
 
-    for (const auto &tid : threads) {
-        std::unique_ptr<CExecutor> executor(new CExecutor(tid, deaf));
+    for (const auto &tid : *threads) {
+        std::unique_ptr<Executor> executor(new Executor(tid, deaf));
 
         if (!executor->attach())
             return false;
@@ -38,7 +41,7 @@ bool CInjector::open(pid_t pid, bool deaf) {
     return true;
 }
 
-int CInjector::inject(const std::vector<std::string>& arguments, const std::vector<std::string>& environs, bool daemon) {
+int Injector::inject(const std::vector<std::string>& arguments, const std::vector<std::string>& environs, bool daemon) {
     std::string combinedArg = zero::strings::join(arguments, PAYLOAD_DELIMITER);
     std::string combinedEnv = zero::strings::join(environs, PAYLOAD_DELIMITER);
 
@@ -52,52 +55,54 @@ int CInjector::inject(const std::vector<std::string>& arguments, const std::vect
     memcpy(payload.argv, combinedArg.data(), combinedArg.size());
     memcpy(payload.env, combinedEnv.data(), combinedEnv.size());
 
-    void *result = nullptr;
-    CExecutor *executor = mExecutors.front();
-
     LOG_INFO("execute alloc shellcode");
 
-    if (!executor->call(alloc_sc, alloc_sc_len, nullptr, nullptr, nullptr, &result)) {
-        LOG_ERROR("execute alloc shellcode failed");
-        return -1;
-    }
+    Executor *executor = mExecutors.front();
+    std::optional<void *> result = executor->call(alloc_sc, alloc_sc_len, 0, 0, nullptr);
 
-    if (!result) {
-        LOG_INFO("allocate memory failed");
+    if (!result || !*result) {
+        LOG_ERROR("execute alloc shellcode failed");
         return -1;
     }
 
     LOG_INFO("memory allocated: %p", result);
 
-    if (!executor->getRegisters(payload.context.regs) || !executor->getFPRegisters(payload.context.fp_regs)) {
+    std::optional<regs_t> regs = executor->getRegisters();
+    std::optional<fp_regs_t> fp_regs = executor->getFPRegisters();
+
+    if (!regs || !fp_regs) {
         LOG_ERROR("get executor context failed");
         return -1;
     }
 
-    if (!executor->writeMemory(result, &payload, sizeof(payload))) {
+    payload.context = {
+            *regs,
+            *fp_regs
+    };
+
+    if (!executor->writeMemory((uintptr_t)*result, &payload, sizeof(payload))) {
         LOG_ERROR("write loader payload failed");
         return -1;
     }
 
-    int status = 0;
-
-    unsigned long pageSize = sysconf(_SC_PAGESIZE);
-    unsigned long base = ((unsigned long)result + sizeof(payload) + pageSize - 1) & ~(pageSize - 1);
-    unsigned long stack = (unsigned long)result + ALLOC_SIZE;
+    uintptr_t base = ((uintptr_t)*result + sizeof(payload) + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1);
+    uintptr_t stack = (uintptr_t)*result + ALLOC_SIZE;
 
     LOG_INFO("execute loader shellcode");
 
-    if (!executor->run(loader_sc, loader_sc_len, (void *)base, (void *)stack, result, status)) {
+    std::optional<int> status = executor->run(loader_sc, loader_sc_len, base, stack, *result);
+
+    if (!status) {
         LOG_ERROR("execute loader shellcode failed");
         return -1;
     }
 
     LOG_INFO("execute free shellcode");
 
-    if (!executor->call(free_sc, free_sc_len, nullptr, nullptr, result, nullptr)) {
+    if (!executor->call(free_sc, free_sc_len, 0, 0, *result)) {
         LOG_ERROR("execute free shellcode failed");
         return -1;
     }
 
-    return status;
+    return *status;
 }

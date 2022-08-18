@@ -6,12 +6,66 @@
 
 #define STACK_SIZE 0x21000
 
+int load(loader_payload_t *payload) {
+    int argc = 0;
+
+    char *argv[PAYLOAD_MAX_ARG];
+    char *envp[PAYLOAD_MAX_ENV];
+
+    z_memset(argv, 0, sizeof(argv));
+    z_memset(envp, 0, sizeof(envp));
+
+    if (!z_strlen(payload->argv)) {
+        LOG("empty argv");
+        return -1;
+    }
+
+    argv[argc++] = payload->argv;
+
+    for (char *i = payload->argv; *i && argc < PAYLOAD_MAX_ARG; i++) {
+        if (*i == *PAYLOAD_DELIMITER) {
+            *i = 0;
+            argv[argc++] = i + 1;
+        }
+    }
+
+    if (z_strlen(payload->env)) {
+        int count = 0;
+        envp[count++] = payload->env;
+
+        for (char *i = payload->env; *i && count < PAYLOAD_MAX_ENV; i++) {
+            if (*i == *PAYLOAD_DELIMITER) {
+                *i = 0;
+                envp[count++] = i + 1;
+            }
+        }
+    }
+
+    for (int i = 0; i < argc; i++)
+        LOG("arg[%d] %s", i, argv[i]);
+
+    for (char **e = envp; *e != NULL; e++)
+        LOG("env %s", *e);
+
+    const char *path = argv[0];
+
+    elf_context_t ctx[2];
+    z_memset(ctx, 0, sizeof(ctx));
+
+    if (load_elf(path, ctx) < 0) {
+        LOG("elf mapping failed: %s", path);
+        return -1;
+    }
+
+    return jump_to_entry(ctx, argc, argv, envp);
+}
+
 void main(void *ptr) {
     loader_payload_t *payload = (loader_payload_t *)ptr;
     snapshot(&payload->context);
 
     if (!payload->daemon) {
-        int status = elf_loader(payload);
+        int status = load(payload);
         quit(status);
     }
 
@@ -28,7 +82,7 @@ void main(void *ptr) {
     asm volatile(
             "mov %0, %%esp;"
             "push %1;"
-            "call elf_loader;"
+            "call load;"
             "push %%eax;"
             "call quit;"
             ::
@@ -38,7 +92,7 @@ void main(void *ptr) {
     asm volatile(
             "mov %0, %%rsp;"
             "mov %1, %%rdi;"
-            "call elf_loader;"
+            "call load;"
             "mov %%rax, %%rdi;"
             "call quit;"
             ::
@@ -48,7 +102,7 @@ void main(void *ptr) {
     asm volatile(
             "mov %%sp, %0;"
             "mov %%r0, %1;"
-            "bl elf_loader;"
+            "bl load;"
             "bl quit;"
             ::
             "r"(stack + STACK_SIZE),
@@ -57,7 +111,7 @@ void main(void *ptr) {
     asm volatile(
             "mov sp, %[stack];"
             "mov x0, %[argument];"
-            "bl elf_loader;"
+            "bl load;"
             "bl quit;"
             ::
             [stack] "r"(stack + STACK_SIZE),

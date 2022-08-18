@@ -61,55 +61,57 @@ constexpr auto PRIVATE_EXIT_MAGIC = 0x6861636b;
 constexpr auto PRIVATE_EXIT_SYSCALL = -1;
 constexpr auto PRIVATE_CANCEL_SYSCALL = -2;
 
-CExecutor::CExecutor(pid_t pid, bool deaf) : CTracee(pid), mDeaf(deaf) {
+Executor::Executor(pid_t pid, bool deaf) : Tracee(pid), mDeaf(deaf) {
 
 }
 
-CExecutor::~CExecutor() {
+Executor::~Executor() {
     for (const auto &sig: mSignals) {
         kill(mPID, sig);
     }
 }
 
-bool CExecutor::run(const unsigned char *shellcode, unsigned int length, void *base, void *stack, void *argument, int &status) {
-    std::unique_ptr<unsigned char> buffer(new unsigned char[length]());
+std::optional<int> Executor::run(void *shellcode, size_t length, uintptr_t base, uintptr_t stack, void *argument) {
+    base = base ? base : getExecutableMemory().value_or(0);
 
-    if (!base && !getExecBase(&base)) {
+    if (!base) {
         LOG_ERROR("get executable memory base failed");
-        return false;
+        return std::nullopt;
     }
 
     LOG_INFO("write shellcode: %p[0x%lx]", base, length);
 
-    if (!readMemory(base, buffer.get(), length))
-        return false;
+    std::unique_ptr<char[]> buffer = std::make_unique<char[]>(length);
 
-    if (!writeMemory(base, (void *)shellcode, length))
-        return false;
+    if (!readMemory(base, buffer.get(), length))
+        return std::nullopt;
+
+    if (!writeMemory(base, shellcode, length))
+        return std::nullopt;
 
 #if __arm__ || __aarch64__
-    uintptr_t tls = 0;
+    std::optional<uintptr_t> tls = getTLS();
 
-    if (!getTLS(tls))
-        return false;
+    if (!tls)
+        return std::nullopt;
 #endif
 
-    regs_t regs = {};
-    fp_regs_t fp_regs = {};
+    std::optional<regs_t> regs = getRegisters();
+    std::optional<fp_regs_t> fp_regs = getFPRegisters();
 
-    if (!getRegisters(regs) || !getFPRegisters(fp_regs))
-        return false;
+    if (!regs || !fp_regs)
+        return std::nullopt;
 
     LOG_INFO("entry: %p stack: %p argument: %p", base, stack, argument);
 
-    regs_t modify = regs;
+    regs_t modify = *regs;
 
-    modify.REG_PC = (unsigned long)base + PC_OFFSET;
-    modify.REG_STACK = stack ? (unsigned long)stack : modify.REG_STACK;
+    modify.REG_PC = base + PC_OFFSET;
+    modify.REG_STACK = stack ? stack : modify.REG_STACK;
 
 #ifdef __i386__
-    if (!writeMemory((char *)modify.REG_STACK - sizeof(arg), &arg, sizeof(arg)))
-        return false;
+    if (!writeMemory(modify.REG_STACK - sizeof(arg), &arg, sizeof(arg)))
+        return std::nullopt;
 
     modify.REG_STACK -= sizeof(arg);
 #else
@@ -117,35 +119,36 @@ bool CExecutor::run(const unsigned char *shellcode, unsigned int length, void *b
 #endif
 
     if (!setRegisters(modify))
-        return false;
+        return std::nullopt;
 
     int sig = 0;
+    int status = 0;
 
     while (true) {
         if (!catchSyscall(sig))
-            return false;
+            return std::nullopt;
 
         int s = 0;
 
         if (waitpid(mPID, &s, 0) < 0) {
             LOG_ERROR("wait pid failed: %s", strerror(errno));
-            return false;
+            return std::nullopt;
         }
 
         if (WIFSIGNALED(s)) {
             LOG_WARNING("process terminated: %s", strsignal(WTERMSIG(s)));
-            return false;
+            return std::nullopt;
         }
 
-        regs_t current = {};
+        std::optional<regs_t> current = getRegisters();
 
-        if (!getRegisters(current))
-            return false;
+        if (!current)
+            return std::nullopt;
 
         sig = WSTOPSIG(s);
 
         if (sig == SIGSEGV) {
-            LOG_ERROR("segmentation fault: 0x%lx", current.REG_PC);
+            LOG_ERROR("segmentation fault: 0x%lx", current->REG_PC);
             break;
         }
 
@@ -167,26 +170,31 @@ bool CExecutor::run(const unsigned char *shellcode, unsigned int length, void *b
         sig = 0;
 
 #if __i386__ || __x86_64__
-        if (current.REG_SYSCALL == PRIVATE_CANCEL_SYSCALL) {
+        if (current->REG_SYSCALL == PRIVATE_CANCEL_SYSCALL) {
             LOG_INFO("catch exit syscall: %d", status);
             break;
         }
 #endif
 
-        if ((int)current.REG_SYSCALL == PRIVATE_EXIT_SYSCALL && current.REG_SYSCALL_ARG1 == PRIVATE_EXIT_MAGIC) {
-            status = (int)current.REG_SYSCALL_ARG2;
+        if ((int)current->REG_SYSCALL == PRIVATE_EXIT_SYSCALL && current->REG_SYSCALL_ARG1 == PRIVATE_EXIT_MAGIC) {
+            status = (int)current->REG_SYSCALL_ARG2;
 
 #if __i386__ || __x86_64__
-            setSyscall(PRIVATE_CANCEL_SYSCALL);
+            if (!setSyscall(PRIVATE_CANCEL_SYSCALL))
+                return std::nullopt;
+
+            continue;
 #elif __arm__ || __aarch64__
             LOG_INFO("catch exit syscall: %d", status);
             break;
 #endif
         }
 
-        if (current.REG_SYSCALL == SYS_exit || current.REG_SYSCALL == SYS_exit_group) {
-            status = (int)current.REG_SYSCALL_ARG;
-            setSyscall(PRIVATE_CANCEL_SYSCALL);
+        if (current->REG_SYSCALL == SYS_exit || current->REG_SYSCALL == SYS_exit_group) {
+            status = (int)current->REG_SYSCALL_ARG;
+
+            if (!setSyscall(PRIVATE_CANCEL_SYSCALL))
+                return std::nullopt;
 
 #if __arm__ || __aarch64__
             LOG_INFO("catch exit syscall: %d", status);
@@ -196,58 +204,63 @@ bool CExecutor::run(const unsigned char *shellcode, unsigned int length, void *b
     }
 
     if (!writeMemory(base, buffer.get(), length))
-        return false;
+        return std::nullopt;
 
 #if __arm__ || __aarch64__
-    if (!setTLS(tls))
-        return false;
+    if (!setTLS(*tls))
+        return std::nullopt;
 #endif
 
-    if (!setRegisters(regs) || !setFPRegisters(fp_regs))
-        return false;
+    if (!setRegisters(*regs) || !setFPRegisters(*fp_regs))
+        return std::nullopt;
 
-    return sig != SIGSEGV;
+    if (sig == SIGSEGV)
+        return std::nullopt;
+
+    return status;
 }
 
-bool CExecutor::call(const unsigned char *shellcode, unsigned int length, void *base, void *stack, void *argument, void **result) {
-    std::unique_ptr<unsigned char> buffer(new unsigned char[length]());
+std::optional<void *> Executor::call(void *shellcode, size_t length, uintptr_t base, uintptr_t stack, void *argument) {
+    base = base ? base : getExecutableMemory().value_or(0);
 
-    if (!base && !getExecBase(&base)) {
+    if (!base) {
         LOG_ERROR("get executable memory base failed");
-        return false;
+        return std::nullopt;
     }
 
     LOG_INFO("write shellcode: %p[0x%lx]", base, length);
 
-    if (!readMemory(base, buffer.get(), length))
-        return false;
+    std::unique_ptr<char[]> buffer = std::make_unique<char[]>(length);
 
-    if (!writeMemory(base, (void *)shellcode, length))
-        return false;
+    if (!readMemory(base, buffer.get(), length))
+        return std::nullopt;
+
+    if (!writeMemory(base, shellcode, length))
+        return std::nullopt;
 
 #if __arm__ || __aarch64__
-    uintptr_t tls = 0;
+    std::optional<uintptr_t> tls = getTLS();
 
-    if (!getTLS(tls))
-        return false;
+    if (!tls)
+        return std::nullopt;
 #endif
 
-    regs_t regs = {};
-    fp_regs_t fp_regs = {};
+    std::optional<regs_t> regs = getRegisters();
+    std::optional<fp_regs_t> fp_regs = getFPRegisters();
 
-    if (!getRegisters(regs) || !getFPRegisters(fp_regs))
-        return false;
+    if (!regs || !fp_regs)
+        return std::nullopt;
 
     LOG_INFO("entry: %p stack: %p argument: %p", base, stack, argument);
 
-    regs_t modify = regs;
+    regs_t modify = *regs;
 
-    modify.REG_PC = (unsigned long)base + PC_OFFSET;
-    modify.REG_STACK = stack ? (unsigned long)stack : modify.REG_STACK;
+    modify.REG_PC = base + PC_OFFSET;
+    modify.REG_STACK = stack ? stack : modify.REG_STACK;
 
 #ifdef __i386__
-    if (!writeMemory((char *)modify.REG_STACK - sizeof(arg), &arg, sizeof(arg)))
-        return false;
+    if (!writeMemory(modify.REG_STACK - sizeof(arg), &arg, sizeof(arg)))
+        return std::nullopt;
 
     modify.REG_STACK -= sizeof(arg);
 #else
@@ -255,42 +268,41 @@ bool CExecutor::call(const unsigned char *shellcode, unsigned int length, void *
 #endif
 
     if (!setRegisters(modify))
-        return false;
+        return std::nullopt;
 
     int sig = 0;
+    void *result = nullptr;
 
     while (true) {
         if (!resume(sig))
-            return false;
+            return std::nullopt;
 
         int s = 0;
 
         if (waitpid(mPID, &s, 0) < 0) {
             LOG_ERROR("wait pid failed: %s", strerror(errno));
-            return false;
+            return std::nullopt;
         }
 
         if (WIFSIGNALED(s)) {
             LOG_WARNING("process terminated: %s", strsignal(WTERMSIG(s)));
-            return false;
+            return std::nullopt;
         }
 
-        regs_t current = {};
+        std::optional<regs_t> current = getRegisters();
 
-        if (!getRegisters(current))
-            return false;
+        if (!current)
+            return std::nullopt;
 
         sig = WSTOPSIG(s);
 
         if (sig == SIGSEGV) {
-            LOG_ERROR("segmentation fault: 0x%lx", current.REG_PC);
+            LOG_ERROR("segmentation fault: 0x%lx", current->REG_PC);
             break;
         }
 
         if (sig == SIGTRAP) {
-            if (result)
-                *result = (void *)current.REG_RET;
-
+            result = (void *)current->REG_RET;
             break;
         }
 
@@ -305,40 +317,41 @@ bool CExecutor::call(const unsigned char *shellcode, unsigned int length, void *
     }
 
     if (!writeMemory(base, buffer.get(), length))
-        return false;
+        return std::nullopt;
 
 #if __arm__ || __aarch64__
-    if (!setTLS(tls))
+    if (!setTLS(*tls))
         return false;
 #endif
 
-    if (!setRegisters(regs) || !setFPRegisters(fp_regs))
-        return false;
+    if (!setRegisters(*regs) || !setFPRegisters(*fp_regs))
+        return std::nullopt;
 
-    return sig != SIGSEGV;
+    if (sig == SIGSEGV)
+        return std::nullopt;
+
+    return result;
 }
 
-bool CExecutor::getExecBase(void **base) const {
-    std::list<zero::proc::CProcessMapping> processMappings;
+std::optional<uintptr_t> Executor::getExecutableMemory() const {
+    std::optional<std::list<zero::proc::ProcessMapping>> processMappings = zero::proc::getProcessMappings(mPID);
 
-    if (!zero::proc::getProcessMappings(mPID, processMappings)) {
+    if (!processMappings) {
         LOG_ERROR("get process %d memory mappings failed", mPID);
         return false;
     }
 
     auto it = std::find_if(
-            processMappings.begin(),
-            processMappings.end(),
+            processMappings->begin(),
+            processMappings->end(),
             [](const auto &m) {
                 return (m.permissions & zero::proc::READ_PERMISSION) &&
                        (m.permissions & zero::proc::EXECUTE_PERMISSION) &&
                        (m.permissions & zero::proc::PRIVATE_PERMISSION);
             });
 
-    if (it == processMappings.end())
-        return false;
+    if (it == processMappings->end())
+        return std::nullopt;
 
-    *base = (void *)(*it).start;
-
-    return true;
+    return it->start;
 }

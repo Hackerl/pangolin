@@ -1,9 +1,10 @@
 #ifndef PANGOLIN_TRACEE_H
 #define PANGOLIN_TRACEE_H
 
-#include <set>
 #include <sys/user.h>
 #include <sys/types.h>
+#include <cstdint>
+#include <optional>
 
 #if __arm__ || __aarch64__
 #include <cstdint>
@@ -20,38 +21,38 @@ typedef user_regs_struct regs_t;
 typedef user_fpregs_struct fp_regs_t;
 #endif
 
-class CTracee {
+class Tracee {
 public:
-    explicit CTracee(pid_t pid);
+    explicit Tracee(pid_t pid);
 
 public:
-    bool attach() const;
-    bool detach() const;
+    [[nodiscard]] bool attach() const;
+    [[nodiscard]] bool detach() const;
 
 public:
-    bool resume(int sig) const;
-    bool catchSyscall(int sig) const;
+    [[nodiscard]] bool resume(int sig) const;
+    [[nodiscard]] bool catchSyscall(int sig) const;
 
 public:
-    bool getRegisters(regs_t &regs) const;
-    bool setRegisters(regs_t &regs) const;
+    [[nodiscard]] std::optional<regs_t> getRegisters() const;
+    [[nodiscard]] bool setRegisters(const regs_t &regs) const;
 
 public:
-    bool getFPRegisters(fp_regs_t &fp_regs) const;
-    bool setFPRegisters(fp_regs_t &fp_regs) const;
+    [[nodiscard]] std::optional<fp_regs_t> getFPRegisters() const;
+    [[nodiscard]] bool setFPRegisters(const fp_regs_t &fp_regs) const;
 
 #if __arm__ || __aarch64__
 public:
-    bool getTLS(uintptr_t &tls) const;
-    bool setTLS(uintptr_t &tls) const;
+    [[nodiscard]] std::optional<uintptr_t> getTLS() const;
+    [[nodiscard]] bool setTLS(uintptr_t tls) const;
 #endif
 
 public:
-    bool readMemory(void *address, void *buffer, unsigned long length) const;
-    bool writeMemory(void *address, void *buffer, unsigned long length) const;
+    [[nodiscard]] bool readMemory(uintptr_t address, void *buffer, size_t length) const;
+    [[nodiscard]] bool writeMemory(uintptr_t address, void *buffer, size_t length) const;
 
 public:
-    bool setSyscall(long number) const;
+    [[nodiscard]] bool setSyscall(long number) const;
 
 protected:
     pid_t mPID;

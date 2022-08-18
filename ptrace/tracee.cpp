@@ -12,11 +12,11 @@
 #include <asm/ptrace.h>
 #endif
 
-CTracee::CTracee(pid_t pid) {
+Tracee::Tracee(pid_t pid) {
     mPID = pid;
 }
 
-bool CTracee::attach() const {
+bool Tracee::attach() const {
     if (ptrace(PTRACE_ATTACH, mPID, nullptr, nullptr) < 0) {
         LOG_ERROR("attach process %d failed: %s", mPID, strerror(errno));
         return false;
@@ -37,7 +37,7 @@ bool CTracee::attach() const {
     return true;
 }
 
-bool CTracee::detach() const {
+bool Tracee::detach() const {
     if (ptrace(PTRACE_DETACH, mPID, nullptr, nullptr) < 0) {
         LOG_ERROR("detach process %d failed: %s", mPID, strerror(errno));
         return false;
@@ -46,25 +46,27 @@ bool CTracee::detach() const {
     return true;
 }
 
-bool CTracee::getRegisters(regs_t &regs) const {
-    iovec io = {};
+std::optional<regs_t> Tracee::getRegisters() const {
+    regs_t regs = {};
 
-    io.iov_base = &regs;
-    io.iov_len = sizeof(regs_t);
+    iovec io = {
+            &regs,
+            sizeof(regs_t)
+    };
 
     if (ptrace(PTRACE_GETREGSET, mPID, (void *)NT_PRSTATUS, (void *)&io) < 0) {
         LOG_ERROR("get process %d registers failed: %s", mPID, strerror(errno));
-        return false;
+        return std::nullopt;
     }
 
-    return true;
+    return regs;
 }
 
-bool CTracee::setRegisters(regs_t &regs) const {
-    iovec io = {};
-
-    io.iov_base = &regs;
-    io.iov_len = sizeof(regs_t);
+bool Tracee::setRegisters(const regs_t &regs) const {
+    iovec io = {
+            (void *)&regs,
+            sizeof(regs_t)
+    };
 
     if (ptrace(PTRACE_SETREGSET, mPID, (void *)NT_PRSTATUS, (void *)&io) < 0) {
         LOG_ERROR("set process %d registers failed: %s", mPID, strerror(errno));
@@ -74,25 +76,27 @@ bool CTracee::setRegisters(regs_t &regs) const {
     return true;
 }
 
-bool CTracee::getFPRegisters(fp_regs_t &fp_regs) const {
-    iovec io = {};
+std::optional<fp_regs_t> Tracee::getFPRegisters() const {
+    fp_regs_t fp_regs = {};
 
-    io.iov_base = &fp_regs;
-    io.iov_len = sizeof(fp_regs_t);
+    iovec io = {
+            &fp_regs,
+            sizeof(fp_regs_t)
+    };
 
     if (ptrace(PTRACE_GETREGSET, mPID, (void *)NT_FPREGSET, (void *)&io) < 0) {
         LOG_ERROR("get process %d fp-registers failed: %s", mPID, strerror(errno));
-        return false;
+        return std::nullopt;
     }
 
-    return true;
+    return fp_regs;
 }
 
-bool CTracee::setFPRegisters(fp_regs_t &fp_regs) const {
-    iovec io = {};
-
-    io.iov_base = &fp_regs;
-    io.iov_len = sizeof(fp_regs_t);
+bool Tracee::setFPRegisters(const fp_regs_t &fp_regs) const {
+    iovec io = {
+            (void *) &fp_regs,
+            sizeof(fp_regs_t)
+    };
 
     if (ptrace(PTRACE_SETREGSET, mPID, (void *)NT_FPREGSET, (void *)&io) < 0) {
         LOG_ERROR("set process %d fp-registers failed: %s", mPID, strerror(errno));
@@ -103,25 +107,27 @@ bool CTracee::setFPRegisters(fp_regs_t &fp_regs) const {
 }
 
 #if __arm__ || __aarch64__
-bool CTracee::getTLS(uintptr_t &tls) const {
-    iovec io = {};
+std::optional<uintptr_t> Tracee::getTLS() const {
+    uintptr_t tls = 0;
 
-    io.iov_base = &tls;
-    io.iov_len = sizeof(uintptr_t);
+    iovec io = {
+            &tls,
+            sizeof(uintptr_t)
+    };
 
     if (ptrace(PTRACE_GETREGSET, mPID, (void *)NT_ARM_TLS, (void *)&io) < 0) {
         LOG_ERROR("get process %d tls failed: %s", mPID, strerror(errno));
-        return false;
+        return std::nullopt;
     }
 
-    return true;
+    return tls;
 }
 
-bool CTracee::setTLS(uintptr_t &tls) const {
-    iovec io = {};
-
-    io.iov_base = &tls;
-    io.iov_len = sizeof(uintptr_t);
+bool Tracee::setTLS(uintptr_t tls) const {
+    iovec io = {
+            &tls,
+            sizeof(uintptr_t)
+    };
 
     if (ptrace(PTRACE_SETREGSET, mPID, (void *)NT_ARM_TLS, (void *)&io) < 0) {
         LOG_ERROR("set process %d tls failed: %s", mPID, strerror(errno));
@@ -132,33 +138,33 @@ bool CTracee::setTLS(uintptr_t &tls) const {
 }
 #endif
 
-bool CTracee::readMemory(void *address, void *buffer, unsigned long length) const {
-    for (unsigned long i = 0; i < length; i += sizeof(long)) {
-        long r = ptrace(PTRACE_PEEKTEXT, mPID, (char *)address + i, nullptr);
+bool Tracee::readMemory(uintptr_t address, void *buffer, size_t length) const {
+    for (size_t i = 0; i < length; i += sizeof(long)) {
+        long r = ptrace(PTRACE_PEEKTEXT, mPID, address + i, nullptr);
 
         if (r == -1 && errno != 0) {
             LOG_ERROR("read process %d memory failed: %s", mPID, strerror(errno));
             return false;
         }
 
-        memcpy((char *)buffer + i, &r, std::min(size_t(length - i), sizeof(long)));
+        memcpy((char *)buffer + i, &r, std::min(length - i, sizeof(long)));
     }
 
     return true;
 }
 
-bool CTracee::writeMemory(void *address, void *buffer, unsigned long length) const {
+bool Tracee::writeMemory(uintptr_t address, void *buffer, size_t length) const {
     if (length < sizeof(long)) {
         LOG_ERROR("buffer length need greater than size of long");
         return false;
     }
 
-    for (unsigned long i = 0; i < length; i += sizeof(long)) {
+    for (size_t i = 0; i < length; i += sizeof(long)) {
         if (length - i < sizeof(long)) {
             i = length - sizeof(long);
         }
 
-        if (ptrace(PTRACE_POKETEXT, mPID, (char *)address + i, *(long *)((char *)buffer + i)) < 0) {
+        if (ptrace(PTRACE_POKETEXT, mPID, address + i, *(long *)((char *)buffer + i)) < 0) {
             LOG_ERROR("write process %d memory failed: %s", mPID, strerror(errno));
             return false;
         }
@@ -167,16 +173,16 @@ bool CTracee::writeMemory(void *address, void *buffer, unsigned long length) con
     return true;
 }
 
-bool CTracee::resume(int sig) const {
+bool Tracee::resume(int sig) const {
     if (ptrace(PTRACE_CONT, mPID, nullptr, sig) < 0) {
-        LOG_ERROR("continue process %d failed: %s", mPID, strerror(errno));
+        LOG_ERROR("resume process %d failed: %s", mPID, strerror(errno));
         return false;
     }
 
     return true;
 }
 
-bool CTracee::catchSyscall(int sig) const {
+bool Tracee::catchSyscall(int sig) const {
     if (ptrace(PTRACE_SYSCALL, mPID, nullptr, sig) < 0) {
         LOG_ERROR("catch process %d syscall failed: %s", mPID, strerror(errno));
         return false;
@@ -185,7 +191,7 @@ bool CTracee::catchSyscall(int sig) const {
     return true;
 }
 
-bool CTracee::setSyscall(long number) const {
+bool Tracee::setSyscall(long number) const {
 #ifdef __arm__
     if (ptrace((__ptrace_request)PTRACE_SET_SYSCALL, mPID, nullptr, (void *)number) < 0) {
         LOG_ERROR("set process %d syscall failed: %s", mPID, strerror(errno));
@@ -193,10 +199,10 @@ bool CTracee::setSyscall(long number) const {
     }
 
 #elif __aarch64__
-    iovec iov = {};
-
-    iov.iov_base = &number;
-    iov.iov_len = sizeof(long);
+    iovec iov = {
+            &number,
+            sizeof(long)
+    };
 
     if (ptrace(PTRACE_SETREGSET, mPID, (void *)NT_ARM_SYSTEM_CALL, &iov) < 0) {
         LOG_ERROR("set process %d syscall failed: %s", mPID, strerror(errno));
@@ -211,7 +217,7 @@ bool CTracee::setSyscall(long number) const {
 
 #elif __x86_64__
     if (ptrace(PTRACE_POKEUSER, mPID, offsetof(regs_t, orig_rax), (void *)number) < 0) {
-        LOG_ERROR("set process %d catchSyscall failed: %s", mPID, strerror(errno));
+        LOG_ERROR("set process %d syscall failed: %s", mPID, strerror(errno));
         return false;
     }
 #endif
