@@ -326,13 +326,13 @@ int jump_to_entry(elf_context_t ctx[2], int argc, char **argv, char **envp) {
     uintptr_t entry = ctx[INTERPRETER].entry ? ctx[INTERPRETER].entry : ctx[PROGRAM].entry;
 
 #ifdef __i386__
-    asm volatile("mov %0, %%esp; xor %%edx, %%edx; jmp *%1;" :: "r"(stack), "a"(entry));
+    asm volatile("mov %0, %%esp; xor %%edx, %%edx; jmp *%1;" :: "r"(stack), "a"(entry) : "edx");
 #elif __x86_64__
-    asm volatile("mov %0, %%rsp; xor %%rdx, %%rdx; jmp *%1;" :: "r"(stack), "a"(entry));
+    asm volatile("mov %0, %%rsp; xor %%rdx, %%rdx; jmp *%1;" :: "r"(stack), "a"(entry) : "rdx");
 #elif __arm__
-    asm volatile("mov %%sp, %0; mov %%r0, #0; bx %[func];" :: "r"(stack), [func] "r"(entry));
+    asm volatile("mov %%sp, %0; mov %%r0, #0; bx %[func];" :: "r"(stack), [func] "r"(entry) : "r0");
 #elif __aarch64__
-    asm volatile("mov sp, %[stack]; mov w0, #0; br %[func];" :: [stack] "r"(stack), [func] "r"(entry));
+    asm volatile("mov sp, %[stack]; mov x0, #0; br %[func];" :: [stack] "r"(stack), [func] "r"(entry) : "x0");
 #endif
 
     return 0;

@@ -321,7 +321,7 @@ std::optional<void *> Executor::call(void *shellcode, size_t length, uintptr_t b
 
 #if __arm__ || __aarch64__
     if (!setTLS(*tls))
-        return false;
+        return std::nullopt;
 #endif
 
     if (!setRegisters(*regs) || !setFPRegisters(*fp_regs))
