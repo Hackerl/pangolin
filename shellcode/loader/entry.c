@@ -33,7 +33,7 @@ int load(loader_payload_t *payload) {
         int count = 0;
         envp[count++] = payload->env;
 
-        for (char *i = payload->env; *i && count < PAYLOAD_MAX_ENV; i++) {
+        for (char *i = payload->env; *i && count < PAYLOAD_MAX_ENV - 1; i++) {
             if (*i == *PAYLOAD_DELIMITER) {
                 *i = 0;
                 envp[count++] = i + 1;

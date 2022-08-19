@@ -1,4 +1,5 @@
 #include "elf_loader.h"
+#include "quit.h"
 #include <z_std.h>
 #include <z_log.h>
 #include <z_syscall.h>
@@ -319,6 +320,10 @@ int jump_to_entry(elf_context_t ctx[2], int argc, char **argv, char **envp) {
     for (char **i = envp; *i; i++)
         *(char **) p++ = *i;
 
+    char *e_quit = (char *) (p + 2) + length;
+    sprintf(e_quit, "QUIT=%p", quit_p());
+
+    *(char **) p++ = e_quit;
     *(char **) p++ = NULL;
 
     z_memcpy(p, av, length);
