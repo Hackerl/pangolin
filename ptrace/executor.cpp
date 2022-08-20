@@ -338,7 +338,7 @@ std::optional<uintptr_t> Executor::getExecutableMemory() const {
 
     if (!processMappings) {
         LOG_ERROR("get process %d memory mappings failed", mPID);
-        return false;
+        return std::nullopt;
     }
 
     auto it = std::find_if(
