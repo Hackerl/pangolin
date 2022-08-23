@@ -71,7 +71,7 @@ Executor::~Executor() {
     }
 }
 
-std::optional<int> Executor::run(void *shellcode, size_t length, uintptr_t base, uintptr_t stack, void *argument) {
+std::optional<int> Executor::run(void *shellcode, size_t length, uintptr_t base, uintptr_t stack, unsigned long argument) {
     base = base ? base : getExecutableMemory().value_or(0);
 
     if (!base) {
@@ -102,7 +102,7 @@ std::optional<int> Executor::run(void *shellcode, size_t length, uintptr_t base,
     if (!regs || !fp_regs)
         return std::nullopt;
 
-    LOG_INFO("entry: %p stack: %p argument: %p", base, stack, argument);
+    LOG_INFO("entry: %p stack: %p argument: 0x%lx", base, stack, argument);
 
     regs_t modify = *regs;
 
@@ -110,12 +110,12 @@ std::optional<int> Executor::run(void *shellcode, size_t length, uintptr_t base,
     modify.REG_STACK = stack ? stack : modify.REG_STACK;
 
 #ifdef __i386__
-    if (!writeMemory(modify.REG_STACK - sizeof(arg), &arg, sizeof(arg)))
+    if (!writeMemory(modify.REG_STACK - sizeof(argument), &argument, sizeof(argument)))
         return std::nullopt;
 
-    modify.REG_STACK -= sizeof(arg);
+    modify.REG_STACK -= sizeof(argument);
 #else
-    modify.REG_ARG = (unsigned long)argument;
+    modify.REG_ARG = argument;
 #endif
 
     if (!setRegisters(modify))
@@ -148,7 +148,7 @@ std::optional<int> Executor::run(void *shellcode, size_t length, uintptr_t base,
         sig = WSTOPSIG(s);
 
         if (sig == SIGSEGV) {
-            LOG_ERROR("segmentation fault: 0x%lx", current->REG_PC);
+            LOG_ERROR("segmentation fault: %p", current->REG_PC);
             break;
         }
 
@@ -220,7 +220,7 @@ std::optional<int> Executor::run(void *shellcode, size_t length, uintptr_t base,
     return status;
 }
 
-std::optional<void *> Executor::call(void *shellcode, size_t length, uintptr_t base, uintptr_t stack, void *argument) {
+std::optional<unsigned long> Executor::call(void *shellcode, size_t length, uintptr_t base, uintptr_t stack, unsigned long argument) {
     base = base ? base : getExecutableMemory().value_or(0);
 
     if (!base) {
@@ -251,7 +251,7 @@ std::optional<void *> Executor::call(void *shellcode, size_t length, uintptr_t b
     if (!regs || !fp_regs)
         return std::nullopt;
 
-    LOG_INFO("entry: %p stack: %p argument: %p", base, stack, argument);
+    LOG_INFO("entry: %p stack: %p argument: 0x%lx", base, stack, argument);
 
     regs_t modify = *regs;
 
@@ -259,19 +259,19 @@ std::optional<void *> Executor::call(void *shellcode, size_t length, uintptr_t b
     modify.REG_STACK = stack ? stack : modify.REG_STACK;
 
 #ifdef __i386__
-    if (!writeMemory(modify.REG_STACK - sizeof(arg), &arg, sizeof(arg)))
+    if (!writeMemory(modify.REG_STACK - sizeof(argument), &argument, sizeof(argument)))
         return std::nullopt;
 
-    modify.REG_STACK -= sizeof(arg);
+    modify.REG_STACK -= sizeof(argument);
 #else
-    modify.REG_ARG = (unsigned long)argument;
+    modify.REG_ARG = argument;
 #endif
 
     if (!setRegisters(modify))
         return std::nullopt;
 
     int sig = 0;
-    void *result = nullptr;
+    unsigned long result = 0;
 
     while (true) {
         if (!resume(sig))
@@ -297,12 +297,12 @@ std::optional<void *> Executor::call(void *shellcode, size_t length, uintptr_t b
         sig = WSTOPSIG(s);
 
         if (sig == SIGSEGV) {
-            LOG_ERROR("segmentation fault: 0x%lx", current->REG_PC);
+            LOG_ERROR("segmentation fault: %p", current->REG_PC);
             break;
         }
 
         if (sig == SIGTRAP) {
-            result = (void *)current->REG_RET;
+            result = current->REG_RET;
             break;
         }
 
@@ -348,7 +348,8 @@ std::optional<uintptr_t> Executor::getExecutableMemory() const {
                 return (m.permissions & zero::proc::READ_PERMISSION) &&
                        (m.permissions & zero::proc::EXECUTE_PERMISSION) &&
                        (m.permissions & zero::proc::PRIVATE_PERMISSION);
-            });
+            }
+    );
 
     if (it == processMappings->end())
         return std::nullopt;

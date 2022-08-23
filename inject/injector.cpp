@@ -58,7 +58,7 @@ int Injector::inject(const std::vector<std::string>& arguments, const std::vecto
     LOG_INFO("execute alloc shellcode");
 
     Executor *executor = mExecutors.front();
-    std::optional<void *> result = executor->call(alloc_sc, alloc_sc_len, 0, 0, nullptr);
+    std::optional<unsigned long> result = executor->call(alloc_sc, alloc_sc_len, 0, 0, 0);
 
     if (!result || !*result) {
         LOG_ERROR("execute alloc shellcode failed");
@@ -80,13 +80,13 @@ int Injector::inject(const std::vector<std::string>& arguments, const std::vecto
             *fp_regs
     };
 
-    if (!executor->writeMemory((uintptr_t)*result, &payload, sizeof(payload))) {
+    if (!executor->writeMemory(*result, &payload, sizeof(payload))) {
         LOG_ERROR("write loader payload failed");
         return -1;
     }
 
-    uintptr_t base = ((uintptr_t)*result + sizeof(payload) + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1);
-    uintptr_t stack = (uintptr_t)*result + ALLOC_SIZE;
+    uintptr_t base = (*result + sizeof(payload) + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1);
+    uintptr_t stack = *result + ALLOC_SIZE;
 
     LOG_INFO("execute loader shellcode");
 

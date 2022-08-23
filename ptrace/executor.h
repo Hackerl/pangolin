@@ -11,8 +11,8 @@ public:
     ~Executor();
 
 public:
-    std::optional<int> run(void *shellcode, size_t length, uintptr_t base, uintptr_t stack, void *argument);
-    std::optional<void *> call(void *shellcode, size_t length, uintptr_t base, uintptr_t stack, void *argument);
+    std::optional<int> run(void *shellcode, size_t length, uintptr_t base, uintptr_t stack, unsigned long argument);
+    std::optional<unsigned long> call(void *shellcode, size_t length, uintptr_t base, uintptr_t stack, unsigned long argument);
 
 private:
     [[nodiscard]] std::optional<uintptr_t> getExecutableMemory() const;

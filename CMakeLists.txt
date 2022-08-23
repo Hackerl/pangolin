@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.0)
+cmake_minimum_required(VERSION 3.17)
 project(pangolin)
 
 set(CMAKE_CXX_STANDARD 17)
@@ -15,7 +15,7 @@ include(FetchContent)
 FetchContent_Declare(
         zero
         GIT_REPOSITORY https://github.com/Hackerl/zero
-        GIT_TAG 2ee1ee881dc5a0912dcd0a9a2eb4d2fd82ecd012
+        GIT_TAG cbbab7d2176e3a679aa58387383c8cf6e902986a
 )
 
 FetchContent_MakeAvailable(zero)
