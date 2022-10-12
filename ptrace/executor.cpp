@@ -130,7 +130,7 @@ std::optional<int> Executor::run(void *shellcode, size_t length, uintptr_t base,
 
         int s = 0;
 
-        if (waitpid(mPID, &s, 0) < 0) {
+        if (waitpid(mPID, &s, __WALL) < 0) {
             LOG_ERROR("wait pid failed: %s", strerror(errno));
             return std::nullopt;
         }
@@ -279,7 +279,7 @@ std::optional<unsigned long> Executor::call(void *shellcode, size_t length, uint
 
         int s = 0;
 
-        if (waitpid(mPID, &s, 0) < 0) {
+        if (waitpid(mPID, &s, __WALL) < 0) {
             LOG_ERROR("wait pid failed: %s", strerror(errno));
             return std::nullopt;
         }

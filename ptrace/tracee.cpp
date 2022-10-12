@@ -24,7 +24,7 @@ bool Tracee::attach() const {
 
     int s = 0;
 
-    if (waitpid(mPID, &s, WUNTRACED) != mPID) {
+    if (waitpid(mPID, &s, __WALL | WUNTRACED) != mPID) {
         LOG_ERROR("wait process %d failed: %s", mPID, strerror(errno));
         return false;
     }
