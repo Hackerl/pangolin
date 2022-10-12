@@ -1,12 +1,13 @@
 #include "quit.h"
 #include <z_std.h>
 #include <z_syscall.h>
+#include <syscall.h>
 
 #if __i386__ || __x86_64__
 #include <asm/prctl.h>
 #endif
 
-#define PRIVATE_EXIT_SYSCALL -1
+#define PRIVATE_EXIT_SYSCALL SYS_sched_yield
 #define PRIVATE_EXIT_MAGIC 0x6861636b
 
 static context_t context = {};

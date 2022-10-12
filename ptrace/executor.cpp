@@ -58,8 +58,8 @@
 
 constexpr auto PRIVATE_EXIT_MAGIC = 0x6861636b;
 
-constexpr auto PRIVATE_EXIT_SYSCALL = -1;
-constexpr auto PRIVATE_CANCEL_SYSCALL = -2;
+constexpr auto PRIVATE_EXIT_SYSCALL = SYS_sched_yield;
+constexpr auto PRIVATE_CANCEL_SYSCALL = -1;
 
 Executor::Executor(pid_t pid, bool deaf) : Tracee(pid), mDeaf(deaf) {
 
@@ -124,6 +124,10 @@ std::optional<int> Executor::run(void *shellcode, size_t length, uintptr_t base,
     int sig = 0;
     int status = 0;
 
+#if __i386__ || __x86_64__
+    bool exiting = false;
+#endif
+
     while (true) {
         if (!catchSyscall(sig))
             return std::nullopt;
@@ -170,7 +174,7 @@ std::optional<int> Executor::run(void *shellcode, size_t length, uintptr_t base,
         sig = 0;
 
 #if __i386__ || __x86_64__
-        if (current->REG_SYSCALL == PRIVATE_CANCEL_SYSCALL) {
+        if (exiting && current->REG_SYSCALL == PRIVATE_CANCEL_SYSCALL) {
             LOG_INFO("catch exit syscall: %d", status);
             break;
         }
@@ -183,6 +187,7 @@ std::optional<int> Executor::run(void *shellcode, size_t length, uintptr_t base,
             if (!setSyscall(PRIVATE_CANCEL_SYSCALL))
                 return std::nullopt;
 
+            exiting = true;
             continue;
 #elif __arm__ || __aarch64__
             LOG_INFO("catch exit syscall: %d", status);
@@ -196,7 +201,9 @@ std::optional<int> Executor::run(void *shellcode, size_t length, uintptr_t base,
             if (!setSyscall(PRIVATE_CANCEL_SYSCALL))
                 return std::nullopt;
 
-#if __arm__ || __aarch64__
+#if __i386__ || __x86_64__
+            exiting = true;
+#elif __arm__ || __aarch64__
             LOG_INFO("catch exit syscall: %d", status);
             break;
 #endif
