@@ -6,10 +6,6 @@
 #include <cstdint>
 #include <optional>
 
-#if __arm__ || __aarch64__
-#include <cstdint>
-#endif
-
 #ifdef __arm__
 typedef user_regs regs_t;
 typedef user_fpregs fp_regs_t;
@@ -24,10 +20,11 @@ typedef user_fpregs_struct fp_regs_t;
 class Tracee {
 public:
     explicit Tracee(pid_t pid);
+    ~Tracee();
 
 public:
-    [[nodiscard]] bool attach() const;
-    [[nodiscard]] bool detach() const;
+    bool attach();
+    bool detach();
 
 public:
     [[nodiscard]] bool resume(int sig) const;
@@ -56,6 +53,7 @@ public:
 
 protected:
     pid_t mPID;
+    bool mAttached;
 };
 
 

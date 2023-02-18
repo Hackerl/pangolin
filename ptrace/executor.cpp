@@ -1,6 +1,6 @@
 #include "executor.h"
 #include <zero/log.h>
-#include <zero/proc/process.h>
+#include <zero/os/procfs.h>
 #include <algorithm>
 #include <sys/wait.h>
 #include <syscall.h>
@@ -71,8 +71,9 @@ Executor::~Executor() {
     }
 }
 
-std::optional<int> Executor::run(void *shellcode, size_t length, uintptr_t base, uintptr_t stack, unsigned long argument) {
-    base = base ? base : getExecutableMemory().value_or(0);
+std::optional<int>
+Executor::run(void *shellcode, size_t length, uintptr_t base, uintptr_t stack, unsigned long argument) {
+    base = base ? base : findExecMemory().value_or(0);
 
     if (!base) {
         LOG_ERROR("get executable memory base failed");
@@ -180,8 +181,8 @@ std::optional<int> Executor::run(void *shellcode, size_t length, uintptr_t base,
         }
 #endif
 
-        if ((int)current->REG_SYSCALL == PRIVATE_EXIT_SYSCALL && current->REG_SYSCALL_ARG1 == PRIVATE_EXIT_MAGIC) {
-            status = (int)current->REG_SYSCALL_ARG2;
+        if ((int) current->REG_SYSCALL == PRIVATE_EXIT_SYSCALL && current->REG_SYSCALL_ARG1 == PRIVATE_EXIT_MAGIC) {
+            status = (int) current->REG_SYSCALL_ARG2;
 
 #if __i386__ || __x86_64__
             if (!setSyscall(PRIVATE_CANCEL_SYSCALL))
@@ -196,7 +197,7 @@ std::optional<int> Executor::run(void *shellcode, size_t length, uintptr_t base,
         }
 
         if (current->REG_SYSCALL == SYS_exit || current->REG_SYSCALL == SYS_exit_group) {
-            status = (int)current->REG_SYSCALL_ARG;
+            status = (int) current->REG_SYSCALL_ARG;
 
             if (!setSyscall(PRIVATE_CANCEL_SYSCALL))
                 return std::nullopt;
@@ -227,8 +228,9 @@ std::optional<int> Executor::run(void *shellcode, size_t length, uintptr_t base,
     return status;
 }
 
-std::optional<unsigned long> Executor::call(void *shellcode, size_t length, uintptr_t base, uintptr_t stack, unsigned long argument) {
-    base = base ? base : getExecutableMemory().value_or(0);
+std::optional<unsigned long>
+Executor::call(void *shellcode, size_t length, uintptr_t base, uintptr_t stack, unsigned long argument) {
+    base = base ? base : findExecMemory().value_or(0);
 
     if (!base) {
         LOG_ERROR("get executable memory base failed");
@@ -340,25 +342,32 @@ std::optional<unsigned long> Executor::call(void *shellcode, size_t length, uint
     return result;
 }
 
-std::optional<uintptr_t> Executor::getExecutableMemory() const {
-    std::optional<std::list<zero::proc::ProcessMapping>> processMappings = zero::proc::getProcessMappings(mPID);
+std::optional<uintptr_t> Executor::findExecMemory() const {
+    std::optional<zero::os::procfs::Process> process = zero::os::procfs::openProcess(mPID);
 
-    if (!processMappings) {
+    if (!process) {
+        LOG_ERROR("open process %d failed", mPID);
+        return std::nullopt;
+    }
+
+    std::optional<std::list<zero::os::procfs::MemoryMapping>> memoryMappings = process->maps();
+
+    if (!memoryMappings) {
         LOG_ERROR("get process %d memory mappings failed", mPID);
         return std::nullopt;
     }
 
     auto it = std::find_if(
-            processMappings->begin(),
-            processMappings->end(),
-            [](const auto &m) {
-                return (m.permissions & zero::proc::READ_PERMISSION) &&
-                       (m.permissions & zero::proc::EXECUTE_PERMISSION) &&
-                       (m.permissions & zero::proc::PRIVATE_PERMISSION);
+            memoryMappings->begin(),
+            memoryMappings->end(),
+            [](const auto &mapping) {
+                return (mapping.permissions & zero::os::procfs::MemoryPermission::READ) &&
+                       (mapping.permissions & zero::os::procfs::MemoryPermission::EXECUTE) &&
+                       (mapping.permissions & zero::os::procfs::MemoryPermission::PRIVATE);
             }
     );
 
-    if (it == processMappings->end())
+    if (it == memoryMappings->end())
         return std::nullopt;
 
     return it->start;

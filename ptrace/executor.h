@@ -3,7 +3,6 @@
 
 #include "tracee.h"
 #include <list>
-#include <cstdint>
 
 class Executor : public Tracee {
 public:
@@ -12,10 +11,12 @@ public:
 
 public:
     std::optional<int> run(void *shellcode, size_t length, uintptr_t base, uintptr_t stack, unsigned long argument);
-    std::optional<unsigned long> call(void *shellcode, size_t length, uintptr_t base, uintptr_t stack, unsigned long argument);
+
+    std::optional<unsigned long>
+    call(void *shellcode, size_t length, uintptr_t base, uintptr_t stack, unsigned long argument);
 
 private:
-    [[nodiscard]] std::optional<uintptr_t> getExecutableMemory() const;
+    [[nodiscard]] std::optional<uintptr_t> findExecMemory() const;
 
 private:
     bool mDeaf;
