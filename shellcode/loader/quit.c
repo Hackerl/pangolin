@@ -12,8 +12,8 @@
 
 static context_t context = {};
 
-void snapshot(context_t *p) {
-    z_memcpy(&context, p, sizeof(context_t));
+void snapshot(const context_t *ctx) {
+    z_memcpy(&context, ctx, sizeof(context_t));
 }
 
 void quit(int status) {
@@ -81,6 +81,6 @@ void quit(int status) {
 #endif
 }
 
-void *quit_p() {
+void *get_quit() {
     return &quit;
 }

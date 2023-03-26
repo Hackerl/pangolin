@@ -70,9 +70,9 @@ static int check_header(Elf_Ehdr *ehdr) {
     return 0;
 }
 
-static int load_segments(char *buffer, int fd, elf_image_t *image) {
+static int load_segments(const void *buffer, int fd, elf_image_t *image) {
     Elf_Ehdr *ehdr = (Elf_Ehdr *) buffer;
-    Elf_Phdr *phdr = (Elf_Phdr *) (buffer + ehdr->e_phoff);
+    Elf_Phdr *phdr = (Elf_Phdr *) ((char *) buffer + ehdr->e_phoff);
 
     uintptr_t minVA = -1;
     uintptr_t maxVA = 0;
@@ -171,7 +171,7 @@ static int load_segments(char *buffer, int fd, elf_image_t *image) {
     return 0;
 }
 
-int load_elf(const char *path, elf_context_t ctx[2]) {
+int load_elf_file(const char *path, elf_context_t ctx[2]) {
     struct STAT sb;
     z_memset(&sb, 0, sizeof(sb));
 
@@ -225,7 +225,7 @@ int load_elf(const char *path, elf_context_t ctx[2]) {
                 return -1;
             }
 
-            if (load_elf(interpreter, ctx + 1) < 0) {
+            if (load_elf_file(interpreter, ctx + 1) < 0) {
                 z_close(fd);
                 return -1;
             }
@@ -255,7 +255,7 @@ int load_elf(const char *path, elf_context_t ctx[2]) {
     return 0;
 }
 
-int jump_to_entry(elf_context_t ctx[2], int argc, char **argv, char **envp) {
+int jump_to_entry(const elf_context_t ctx[2], int argc, char *argv[], char *envp[]) {
     int fd = Z_RESULT_V(z_open(AV_PATH, O_RDONLY, 0));
 
     if (fd < 0) {
@@ -320,10 +320,10 @@ int jump_to_entry(elf_context_t ctx[2], int argc, char **argv, char **envp) {
     for (char **i = envp; *i; i++)
         *(char **) p++ = *i;
 
-    char *e_quit = (char *) (p + 2) + length;
-    sprintf(e_quit, "QUIT=%p", quit_p());
+    char *environ = (char *) (p + 2) + length;
+    sprintf(environ, "QUIT=%p", get_quit());
 
-    *(char **) p++ = e_quit;
+    *(char **) p++ = environ;
     *(char **) p++ = NULL;
 
     z_memcpy(p, av, length);

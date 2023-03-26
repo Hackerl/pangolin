@@ -52,7 +52,7 @@ int load(loader_payload_t *payload) {
     elf_context_t ctx[2];
     z_memset(ctx, 0, sizeof(ctx));
 
-    if (load_elf(path, ctx) < 0) {
+    if (load_elf_file(path, ctx) < 0) {
         LOG("elf mapping failed: %s", path);
         return -1;
     }
@@ -60,8 +60,7 @@ int load(loader_payload_t *payload) {
     return jump_to_entry(ctx, argc, argv, envp);
 }
 
-void main(void *ptr) {
-    loader_payload_t *payload = (loader_payload_t *)ptr;
+void main(loader_payload_t *payload) {
     snapshot(&payload->context);
 
     if (!payload->daemon) {

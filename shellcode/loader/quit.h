@@ -19,8 +19,8 @@ typedef struct {
     fp_regs_t fp_regs;
 } context_t;
 
-void snapshot(context_t *p);
+void snapshot(const context_t *ctx);
 void quit(int status);
-void *quit_p();
+void *get_quit();
 
 #endif //PANGOLIN_QUIT_H
