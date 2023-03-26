@@ -6,7 +6,6 @@
 #include <sys/mman.h>
 #include <fcntl.h>
 #include <elf.h>
-#include <limits.h>
 
 #define STACK_ALIGN     16
 
@@ -70,7 +69,7 @@ static int check_header(Elf_Ehdr *ehdr) {
     return 0;
 }
 
-static int load_segments(const void *buffer, int fd, elf_image_t *image) {
+static int load_segments(const void *buffer, elf_image_t *image) {
     Elf_Ehdr *ehdr = (Elf_Ehdr *) buffer;
     Elf_Phdr *phdr = (Elf_Phdr *) ((char *) buffer + ehdr->e_phoff);
 
@@ -97,8 +96,8 @@ static int load_segments(const void *buffer, int fd, elf_image_t *image) {
             dyn ? NULL : (void *) minVA,
             maxVA - minVA,
             PROT_NONE,
-            (dyn ? 0 : MAP_FIXED) | MAP_PRIVATE | MAP_DENYWRITE,
-            fd,
+            (dyn ? 0 : MAP_FIXED) | MAP_PRIVATE | MAP_ANONYMOUS,
+            -1,
             0
     ));
 
@@ -125,40 +124,30 @@ static int load_segments(const void *buffer, int fd, elf_image_t *image) {
 
         size_t offset = i->p_vaddr & (PAGE_SIZE - 1);
         size_t size = ROUND_PG(i->p_memsz + offset);
-        size_t filesize = ROUND_PG(i->p_filesz + offset);
         uintptr_t start = (uintptr_t) base + TRUNC_PG(i->p_vaddr) - minVA;
 
         LOG("segment: 0x%lx[0x%lx]", start, size);
 
-        int protection = (i->p_flags & PF_R ? PROT_READ : 0) | (i->p_flags & PF_W ? PROT_WRITE : 0) |
-                         (i->p_flags & PF_X ? PROT_EXEC : 0);
-
-        if (Z_RESULT_V(z_mmap(
+        void *p = Z_RESULT_V(z_mmap(
                 (void *) start,
                 size,
-                protection,
-                MAP_FIXED | MAP_PRIVATE | MAP_DENYWRITE,
-                fd,
-                (off_t) (i->p_offset - offset))) == MAP_FAILED) {
+                PROT_WRITE,
+                MAP_FIXED | MAP_PRIVATE | MAP_ANONYMOUS,
+                -1,
+                0
+        ));
+
+        if (p == MAP_FAILED) {
             z_munmap(base, maxVA - minVA);
             return -1;
         }
 
-        if (i->p_memsz == i->p_filesz)
-            continue;
+        z_memcpy((char *) p + offset, (char *) buffer + i->p_offset, i->p_filesz);
 
-        z_memset((char *) start + offset + i->p_filesz, 0, filesize - i->p_filesz - offset);
+        int protection = (i->p_flags & PF_R ? PROT_READ : 0) | (i->p_flags & PF_W ? PROT_WRITE : 0) |
+                         (i->p_flags & PF_X ? PROT_EXEC : 0);
 
-        if (size == filesize)
-            continue;
-
-        if (Z_RESULT_V(z_mmap(
-                (char *) start + filesize,
-                size - filesize,
-                protection,
-                MAP_FIXED | MAP_PRIVATE | MAP_ANONYMOUS,
-                -1,
-                0)) == MAP_FAILED) {
+        if (Z_RESULT_V(z_mprotect(p, size, protection)) == -1) {
             z_munmap(base, maxVA - minVA);
             return -1;
         }
@@ -167,6 +156,38 @@ static int load_segments(const void *buffer, int fd, elf_image_t *image) {
     image->base = (uintptr_t) base;
     image->minVA = minVA;
     image->maxVA = maxVA;
+
+    return 0;
+}
+
+static int load_elf(const void *buffer, elf_context_t ctx[2]) {
+    if (check_header((Elf_Ehdr *) buffer) < 0) {
+        LOG("invalid elf header");
+        return -1;
+    }
+
+    Elf_Ehdr *ehdr = (Elf_Ehdr *) buffer;
+    Elf_Phdr *phdr = (Elf_Phdr *) ((char *) buffer + ehdr->e_phoff);
+
+    for (Elf_Phdr *i = phdr; i < &phdr[ehdr->e_phnum]; i++) {
+        if (i->p_type == PT_INTERP) {
+            if (load_elf_file((const char *) buffer + i->p_offset, ctx + 1) < 0)
+                return -1;
+
+            break;
+        }
+    }
+
+    elf_image_t image = {};
+
+    if (load_segments(buffer, &image) < 0)
+        return -1;
+
+    ctx->base = image.base;
+    ctx->entry = image.base + ehdr->e_entry - image.minVA;
+    ctx->header = image.base + ehdr->e_phoff;
+    ctx->header_num = ehdr->e_phnum;
+    ctx->header_size = ehdr->e_phentsize;
 
     return 0;
 }
@@ -192,65 +213,30 @@ int load_elf_file(const char *path, elf_context_t ctx[2]) {
         return -1;
     }
 
-    char buffer[BUFFER_SIZE];
-    z_memset(buffer, 0, sizeof(buffer));
+    off_t size = Z_RESULT_V(z_lseek(fd, 0, SEEK_END));
 
-    if (Z_RESULT_V(z_read(fd, buffer, BUFFER_SIZE)) < 0) {
-        LOG("read file failed: %s", path);
+    if (size < 0) {
+        LOG("seek file failed: %s", path);
         z_close(fd);
         return -1;
     }
 
-    if (check_header((Elf_Ehdr *) buffer) < 0) {
-        LOG("invalid elf header");
+    void *buffer = Z_RESULT_V(z_mmap(NULL, (size_t) size, PROT_READ, MAP_PRIVATE, fd, 0));
+
+    if (buffer == MAP_FAILED) {
+        LOG("mmap elf file failed: %s", path);
         z_close(fd);
         return -1;
     }
-
-    Elf_Ehdr *ehdr = (Elf_Ehdr *) buffer;
-    Elf_Phdr *phdr = (Elf_Phdr *) (buffer + ehdr->e_phoff);
-
-    for (Elf_Phdr *i = phdr; i < &phdr[ehdr->e_phnum]; i++) {
-        if (i->p_type == PT_INTERP) {
-            char interpreter[PATH_MAX];
-            z_memset(interpreter, 0, sizeof(interpreter));
-
-            if (Z_RESULT_V(z_lseek(fd, (off_t) i->p_offset, SEEK_SET)) < 0) {
-                z_close(fd);
-                return -1;
-            }
-
-            if (Z_RESULT_V(z_read(fd, interpreter, i->p_filesz)) != i->p_filesz) {
-                z_close(fd);
-                return -1;
-            }
-
-            if (load_elf_file(interpreter, ctx + 1) < 0) {
-                z_close(fd);
-                return -1;
-            }
-
-            break;
-        }
-    }
-
-    LOG("mapping %s", path);
-
-    elf_image_t image;
-    z_memset(&image, 0, sizeof(image));
-
-    if (load_segments(buffer, fd, &image) < 0) {
-        z_close(fd);
-        return -1;
-    }
-
-    ctx->base = image.base;
-    ctx->entry = image.base + ehdr->e_entry - image.minVA;
-    ctx->header = image.base + ehdr->e_phoff;
-    ctx->header_num = ehdr->e_phnum;
-    ctx->header_size = ehdr->e_phentsize;
 
     z_close(fd);
+
+    if (load_elf(buffer, ctx) < 0) {
+        z_munmap(buffer, (size_t) size);
+        return -1;
+    }
+
+    z_munmap(buffer, (size_t) size);
 
     return 0;
 }
