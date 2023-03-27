@@ -160,38 +160,6 @@ static int load_segments(const void *buffer, elf_image_t *image) {
     return 0;
 }
 
-static int load_elf(const void *buffer, elf_context_t ctx[2]) {
-    if (check_header((Elf_Ehdr *) buffer) < 0) {
-        LOG("invalid elf header");
-        return -1;
-    }
-
-    Elf_Ehdr *ehdr = (Elf_Ehdr *) buffer;
-    Elf_Phdr *phdr = (Elf_Phdr *) ((char *) buffer + ehdr->e_phoff);
-
-    for (Elf_Phdr *i = phdr; i < &phdr[ehdr->e_phnum]; i++) {
-        if (i->p_type == PT_INTERP) {
-            if (load_elf_file((const char *) buffer + i->p_offset, ctx + 1) < 0)
-                return -1;
-
-            break;
-        }
-    }
-
-    elf_image_t image = {};
-
-    if (load_segments(buffer, &image) < 0)
-        return -1;
-
-    ctx->base = image.base;
-    ctx->entry = image.base + ehdr->e_entry - image.minVA;
-    ctx->header = image.base + ehdr->e_phoff;
-    ctx->header_num = ehdr->e_phnum;
-    ctx->header_size = ehdr->e_phentsize;
-
-    return 0;
-}
-
 int load_elf_file(const char *path, elf_context_t ctx[2]) {
     struct STAT sb;
     z_memset(&sb, 0, sizeof(sb));
@@ -231,10 +199,41 @@ int load_elf_file(const char *path, elf_context_t ctx[2]) {
 
     z_close(fd);
 
-    if (load_elf(buffer, ctx) < 0) {
+    if (check_header((Elf_Ehdr *) buffer) < 0) {
+        LOG("invalid elf header");
         z_munmap(buffer, (size_t) size);
         return -1;
     }
+
+    Elf_Ehdr *ehdr = (Elf_Ehdr *) buffer;
+    Elf_Phdr *phdr = (Elf_Phdr *) ((char *) buffer + ehdr->e_phoff);
+
+    for (Elf_Phdr *i = phdr; i < &phdr[ehdr->e_phnum]; i++) {
+        if (i->p_type == PT_INTERP) {
+            if (load_elf_file((const char *) buffer + i->p_offset, ctx + 1) < 0) {
+                z_munmap(buffer, (size_t) size);
+                return -1;
+            }
+
+            break;
+        }
+    }
+
+    LOG("mapping %s", path);
+
+    elf_image_t image;
+    z_memset(&image, 0, sizeof(image));
+
+    if (load_segments(buffer, &image) < 0) {
+        z_munmap(buffer, (size_t) size);
+        return -1;
+    }
+
+    ctx->base = image.base;
+    ctx->entry = image.base + ehdr->e_entry - image.minVA;
+    ctx->header = image.base + ehdr->e_phoff;
+    ctx->header_num = ehdr->e_phnum;
+    ctx->header_size = ehdr->e_phentsize;
 
     z_munmap(buffer, (size_t) size);
 
