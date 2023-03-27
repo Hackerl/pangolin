@@ -73,17 +73,26 @@ int main(int argc, char *argv[]) {
     }
 
     std::string commandline = zero::strings::join(arguments, PAYLOAD_DELIMITER);
-    std::string env = zero::strings::join(*environs, PAYLOAD_DELIMITER);
 
-    if (commandline.length() >= sizeof(loader_payload_t::argv) || env.length() >= sizeof(loader_payload_t::env)) {
-        LOG_ERROR("length of payload exceeds limit");
+    if (commandline.length() >= sizeof(loader_payload_t::argv)) {
+        LOG_ERROR("length of command line exceeds limit");
         return -1;
     }
 
     loader_payload_t payload = {daemon};
 
     memcpy(payload.argv, commandline.c_str(), commandline.length());
-    memcpy(payload.env, env.c_str(), env.length());
+
+    if (environs) {
+        std::string env = zero::strings::join(*environs, PAYLOAD_DELIMITER);
+
+        if (env.length() >= sizeof(loader_payload_t::env)) {
+            LOG_ERROR("length of environment variables exceeds limit");
+            return -1;
+        }
+
+        memcpy(payload.env, env.c_str(), env.length());
+    }
 
     LOG_INFO("execute alloc shellcode");
 
