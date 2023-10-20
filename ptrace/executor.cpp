@@ -343,17 +343,17 @@ Executor::call(void *shellcode, size_t length, uintptr_t base, uintptr_t stack, 
 }
 
 std::optional<uintptr_t> Executor::findExecMemory() const {
-    std::optional<zero::os::procfs::Process> process = zero::os::procfs::openProcess(mPID);
+    auto process = zero::os::procfs::openProcess(mPID);
 
     if (!process) {
-        LOG_ERROR("open process %d failed", mPID);
+        LOG_ERROR("open process %d failed[%s]", mPID, process.error().message().c_str());
         return std::nullopt;
     }
 
-    std::optional<std::list<zero::os::procfs::MemoryMapping>> memoryMappings = process->maps();
+    auto memoryMappings = process->maps();
 
     if (!memoryMappings) {
-        LOG_ERROR("get process %d memory mappings failed", mPID);
+        LOG_ERROR("get process %d memory mappings failed[%s]", mPID, memoryMappings.error().message().c_str());
         return std::nullopt;
     }
 

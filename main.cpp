@@ -42,17 +42,17 @@ int main(int argc, char *argv[]) {
 
     LOG_INFO("exec %s", zero::strings::join(arguments, " ").c_str());
 
-    std::optional<zero::os::procfs::Process> process = zero::os::procfs::openProcess(pid);
+    auto process = zero::os::procfs::openProcess(pid);
 
     if (!process) {
-        LOG_ERROR("open process %d failed", pid);
+        LOG_ERROR("open process %d failed[%s]", pid, process.error().message().c_str());
         return -1;
     }
 
-    std::optional<std::list<pid_t>> tasks = process->tasks();
+    auto tasks = process->tasks();
 
     if (!tasks) {
-        LOG_ERROR("get process tasks failed");
+        LOG_ERROR("get process tasks failed[%s]", tasks.error().message().c_str());
         return -1;
     }
 
